@@ -1,101 +1,69 @@
 
 
-# Novas Ferramentas + Modo de Cor do SVG + Correção de Cor de Destaque
+# Correções e Novas Ferramentas
 
-## 1. Correção da Cor de Destaque (#F0FF00)
+## 1. Remover cor #F0FF00 dos ícones de seção e InfoTooltip
 
-A cor primária atual é `54 100% 50%` (amarelo). A cor correta é `#F0FF00` = HSL `64 100% 50%`.
+Os ícones de informação e de seção (Palette, Hexagon, Shield, Grid3X3, Layers) estão usando `text-primary` que é #F0FF00. Devem usar cor neutra.
 
-**Regra importante**: A cor `#F0FF00` deve aparecer APENAS em botões (CTA). Sliders, switches, checkboxes e selects devem usar cores neutras (cinza).
+### Arquivos:
+- **`src/components/InfoTooltip.tsx`**: Trocar `text-primary` por `text-muted-foreground` no botão do ícone Info
+- **`src/pages/Index.tsx`**: Trocar `text-primary` dos ícones de seção (Palette, Hexagon, Shield, Grid3X3, Layers) por `text-muted-foreground`. Também remover `group-hover:text-primary` dos labels de geometria, trocando por `group-hover:text-foreground`
 
-### Mudanças nos componentes UI:
+## 2. Adicionar dicas úteis em cada InfoTooltip
 
-**`src/index.css`** - Atualizar `--primary` para `64 100% 50%` e criar variáveis neutras para controles de formulário.
+Atualmente os tooltips têm textos genéricos. Cada um receberá uma explicação detalhada e prática:
 
-**`src/components/ui/slider.tsx`** - Trocar `bg-primary` por cinza neutro (`bg-foreground/30`) no Range e `border-primary` por `border-foreground/40` no Thumb.
+| Seção | Dica |
+|-------|------|
+| Clearspace | "Clearspace (zona de proteção) é a área mínima ao redor do logo onde nenhum outro elemento gráfico deve aparecer. O valor 'X' define a distância em unidades selecionadas. Quanto maior o valor, mais espaço livre ao redor." |
+| Construction Grid | "Gera uma grade modular baseada nas proporções do logomark. Útil para alinhar elementos em layouts. As subdivisões controlam a densidade da grade. Use 'Invert Components' para trocar qual elemento é considerado o ícone principal." |
+| Invert Components | "Troca a detecção automática de qual parte do logo é o ícone (logomark) e qual é o texto (wordmark). A grade e as proporções são calculadas com base no elemento identificado como ícone." |
+| Construction Geometry | "Sobreposições geométricas de construção para análise visual do logo. Cada camada pode ter cor, opacidade e espessura de traço personalizados. Ative múltiplas camadas para uma análise completa." |
 
-**`src/components/ui/switch.tsx`** - Trocar `data-[state=checked]:bg-primary` por `data-[state=checked]:bg-foreground/60` (cinza escuro quando ativo).
+Adicionar também InfoTooltips nas seções que não têm:
+- **SVG Color**: "Altere a cor de todos os caminhos do SVG importado. Útil para testar o logo em diferentes cores ou verificar como ele funciona em monocromático."
+- **Canvas**: "Controle o fundo do canvas de visualização. Use 'Checkerboard' para simular transparência, 'Light' para fundos claros e 'Dark' para fundos escuros."
 
-**`src/components/ui/checkbox.tsx`** - Trocar `border-primary`, `data-[state=checked]:bg-primary` por variantes cinza (`border-foreground/30`, `data-[state=checked]:bg-foreground/70`).
+## 3. Revisão do Clearspace duplo
 
-**`src/components/ui/select.tsx`** - Trocar `focus:bg-accent focus:text-accent-foreground` no SelectItem por `focus:bg-secondary focus:text-secondary-foreground`.
+Analisando o código e a imagem: o clearspace é renderizado UMA vez, criando 4 retângulos (topo, base, esquerda, direita) ao redor do bounds do SVG. O que aparece como "duplo" na imagem é provavelmente o clearspace + outra ferramenta ativa (como Bounding Rectangles ou Safe Zone), que criam visuais similares em azul/transparente. O clearspace em si está correto.
 
-**`src/pages/Index.tsx`** - Remover `data-[state=checked]:bg-primary data-[state=checked]:border-primary` inline dos Checkboxes (o componente base cuidará disso).
+Porém, para evitar confusão visual, vou melhorar a diferenciação:
+- Adicionar um contorno tracejado (dashed border) ao redor da zona de clearspace para distingui-la visualmente de outras camadas
+- Mudar a cor do label "X" do clearspace de azul para uma cor mais distinta
 
----
+## 4. Novas Ferramentas de Geometria
 
-## 2. Modo de Cor do SVG
+Adicionar 4 novas ferramentas ao sistema:
 
-Nova seção "SVG Color" na sidebar que permite alterar a cor de todos os paths/fills do SVG importado.
+### 4.1 Dynamic Baseline Grid
+- Grade horizontal baseada no tamanho do texto/tipografia do logo
+- Linhas horizontais espaçadas uniformemente para alinhamento tipográfico
+- Grupo: "Measurement"
 
-### Funcionalidades:
-- **Presets de cor**: Preto, Branco, Vermelho, Azul, Verde, Cinza (botões com swatches)
-- **Cor manual**: Input de cor (color picker nativo) + campo hex
-- **Reset**: Botão para restaurar cores originais do SVG
+### 4.2 Fibonacci Overlay
+- Retângulos de Fibonacci sobrepostos no logo
+- Mostra como o design se alinha com a sequência de Fibonacci
+- Grupo: "Harmony"
 
-### Implementação:
+### 4.3 Ken Burns Safe Area
+- Zona segura para animações e redimensionamento (broadcast safe area)
+- Retângulo interno com margem de 10% para garantir visibilidade em todas as mídias
+- Grupo: "Advanced"
 
-**`src/pages/Index.tsx`**:
-- Novo state: `svgColorOverride: string | null` (null = cores originais)
-- Nova seção na sidebar entre "SVG Upload" e "Presets"
-- Presets: array de cores pré-definidas com nomes
-- Color picker nativo + input hex editável
-- Botão "Reset to Original"
+### 4.4 Component Ratio Labels
+- Exibe labels com as proporções (aspect ratios) de cada componente
+- Ex: "1:1.414" ou "16:9" próximo a cada bounding box
+- Grupo: "Measurement"
 
-**`src/components/PreviewCanvas.tsx`**:
-- Nova prop: `svgColorOverride?: string | null`
-- Após `importSVG()`, se `svgColorOverride` estiver definido, iterar todos os children do item e aplicar `fillColor` e `strokeColor` com a cor escolhida
-
----
-
-## 3. Novas Ferramentas Visuais
-
-### 3.1 Pixel Grid Overlay
-- Grid de pixels finos sobre o logo em alta resolução
-- Útil para verificar alinhamento em nível de pixel
-- Adicionado como nova opção em GeometryOptions: `pixelGrid`
-
-### 3.2 Optical Center
-- Marca o centro óptico do logo (ligeiramente acima do centro geométrico)
-- Cruz + círculo no ponto óptico
-- Nova opção: `opticalCenter`
-
-### 3.3 Contrast Ratio Guide  
-- Mostra áreas de alto e baixo contraste entre o logo e o background
-- Overlay com heatmap simplificado
-- Nova opção: `contrastGuide`
-
-### Mudanças em arquivos:
-
-**`src/pages/Index.tsx`**:
-- Adicionar `pixelGrid`, `opticalCenter`, `contrastGuide` ao GeometryOptions
-- Adicionar labels e estilos default
-- Adicionar ao grupo "Advanced"
-
-**`src/components/geometry-renderers.ts`**:
-- `renderPixelGrid(bounds, style, subdivisions)` - grid fino de 1px
-- `renderOpticalCenter(bounds, style)` - centro óptico com marcadores
-- `renderContrastGuide(bounds, style)` - guias de contraste
-
-**`src/components/PreviewCanvas.tsx`**:
-- Integrar 3 novos renderers
-
-**`src/lib/preset-engine.ts`**:
-- Adicionar novos campos nos presets default
-
----
-
-## Resumo de Arquivos
+## Resumo de Arquivos Modificados
 
 | Arquivo | Mudanças |
 |---------|----------|
-| `src/index.css` | Cor primary para #F0FF00 (64 100% 50%) |
-| `src/components/ui/slider.tsx` | Range e thumb neutros (cinza) |
-| `src/components/ui/switch.tsx` | Checked state neutro (cinza) |
-| `src/components/ui/checkbox.tsx` | Checked/border neutros (cinza) |
-| `src/components/ui/select.tsx` | Focus state neutro |
-| `src/pages/Index.tsx` | Novo SVG Color mode, 3 novos geometry options, remover overrides inline de checkbox |
-| `src/components/PreviewCanvas.tsx` | Prop svgColorOverride + 3 novos renderers |
-| `src/components/geometry-renderers.ts` | 3 novas funções de renderização |
-| `src/lib/preset-engine.ts` | Novos campos nos presets |
+| `src/components/InfoTooltip.tsx` | Cor do ícone de `text-primary` para `text-muted-foreground` |
+| `src/pages/Index.tsx` | Cores dos ícones de seção para neutro; textos detalhados nos InfoTooltips; novos InfoTooltips em SVG Color e Canvas; 4 novos campos em GeometryOptions/Styles/Labels/Groups; remover hover amarelo dos labels |
+| `src/components/geometry-renderers.ts` | 4 novas funções: `renderDynamicBaseline`, `renderFibonacciOverlay`, `renderKenBurnsSafe`, `renderComponentRatioLabels` |
+| `src/components/PreviewCanvas.tsx` | Integrar 4 novos renderers; melhorar diferenciação visual do clearspace (borda tracejada) |
+| `src/lib/preset-engine.ts` | Adicionar 4 novos campos nos presets default |
 
