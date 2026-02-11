@@ -452,3 +452,389 @@ export function renderThirdLines(
     }
   }
 }
+
+// ===================== NEW GEOMETRY RENDERERS =====================
+
+export function renderSymmetryAxes(
+  bounds: paper.Rectangle,
+  scaledCompBounds: paper.Rectangle[],
+  style: StyleConfig
+) {
+  const color = hexToColor(style.color, style.opacity);
+  const dimColor = hexToColor(style.color, style.opacity * 0.6);
+
+  // Global symmetry axes
+  const vAxis = new paper.Path.Line(
+    new paper.Point(bounds.center.x, bounds.top - 40),
+    new paper.Point(bounds.center.x, bounds.bottom + 40)
+  );
+  vAxis.strokeColor = color;
+  vAxis.strokeWidth = style.strokeWidth * 1.2;
+  vAxis.dashArray = [10, 4, 2, 4];
+
+  const hAxis = new paper.Path.Line(
+    new paper.Point(bounds.left - 40, bounds.center.y),
+    new paper.Point(bounds.right + 40, bounds.center.y)
+  );
+  hAxis.strokeColor = color;
+  hAxis.strokeWidth = style.strokeWidth * 1.2;
+  hAxis.dashArray = [10, 4, 2, 4];
+
+  // Small diamond markers at center
+  const diamond = new paper.Path.RegularPolygon(bounds.center, 4, 5);
+  diamond.strokeColor = color;
+  diamond.strokeWidth = style.strokeWidth;
+  diamond.fillColor = hexToColor(style.color, style.opacity * 0.2);
+  diamond.rotation = 45;
+
+  // Per-component axes
+  scaledCompBounds.forEach(cb => {
+    const cv = new paper.Path.Line(
+      new paper.Point(cb.center.x, cb.top - 15),
+      new paper.Point(cb.center.x, cb.bottom + 15)
+    );
+    cv.strokeColor = dimColor;
+    cv.strokeWidth = style.strokeWidth * 0.6;
+    cv.dashArray = [6, 3, 2, 3];
+
+    const ch = new paper.Path.Line(
+      new paper.Point(cb.left - 15, cb.center.y),
+      new paper.Point(cb.right + 15, cb.center.y)
+    );
+    ch.strokeColor = dimColor;
+    ch.strokeWidth = style.strokeWidth * 0.6;
+    ch.dashArray = [6, 3, 2, 3];
+  });
+}
+
+export function renderAngleMeasurements(
+  bounds: paper.Rectangle,
+  scaledCompBounds: paper.Rectangle[],
+  style: StyleConfig
+) {
+  const color = hexToColor(style.color, style.opacity);
+  const labelColor = hexToColor(style.color, style.opacity * 0.9);
+
+  // Measure diagonal angle of the full bounds
+  const diagAngle = Math.atan2(bounds.height, bounds.width) * (180 / Math.PI);
+  const arcRadius = Math.min(bounds.width, bounds.height) * 0.15;
+
+  // Bottom-left corner arc
+  const arcPath = new paper.Path.Arc(
+    new paper.Point(bounds.left + arcRadius, bounds.bottom),
+    new paper.Point(
+      bounds.left + arcRadius * Math.cos(diagAngle * Math.PI / 360),
+      bounds.bottom - arcRadius * Math.sin(diagAngle * Math.PI / 360)
+    ),
+    new paper.Point(
+      bounds.left + arcRadius * Math.cos(diagAngle * Math.PI / 180),
+      bounds.bottom - arcRadius * Math.sin(diagAngle * Math.PI / 180)
+    )
+  );
+  arcPath.strokeColor = color;
+  arcPath.strokeWidth = style.strokeWidth;
+  arcPath.fillColor = null;
+
+  const labelPt = new paper.Point(
+    bounds.left + arcRadius * 1.4 * Math.cos(diagAngle * Math.PI / 360),
+    bounds.bottom - arcRadius * 1.4 * Math.sin(diagAngle * Math.PI / 360)
+  );
+  const label = new paper.PointText(labelPt);
+  label.content = `${diagAngle.toFixed(1)}°`;
+  label.fillColor = labelColor;
+  label.fontSize = 9;
+  label.fontWeight = 'bold';
+
+  // Per-component aspect ratio angles
+  scaledCompBounds.forEach(cb => {
+    const angle = Math.atan2(cb.height, cb.width) * (180 / Math.PI);
+    const r = Math.min(cb.width, cb.height) * 0.2;
+    if (r < 8) return;
+
+    const arc = new paper.Path.Arc(
+      new paper.Point(cb.left + r, cb.bottom),
+      new paper.Point(cb.left + r * 0.85, cb.bottom - r * 0.5),
+      new paper.Point(
+        cb.left + r * Math.cos(angle * Math.PI / 180),
+        cb.bottom - r * Math.sin(angle * Math.PI / 180)
+      )
+    );
+    arc.strokeColor = hexToColor(style.color, style.opacity * 0.6);
+    arc.strokeWidth = style.strokeWidth * 0.7;
+    arc.fillColor = null;
+
+    if (r > 15) {
+      const lbl = new paper.PointText(new paper.Point(cb.left + r * 1.5, cb.bottom - r * 0.3));
+      lbl.content = `${angle.toFixed(1)}°`;
+      lbl.fillColor = hexToColor(style.color, style.opacity * 0.7);
+      lbl.fontSize = 8;
+    }
+  });
+}
+
+export function renderSpacingGuides(
+  bounds: paper.Rectangle,
+  scaledCompBounds: paper.Rectangle[],
+  style: StyleConfig
+) {
+  const color = hexToColor(style.color, style.opacity);
+  const labelColor = hexToColor(style.color, style.opacity * 0.9);
+  const fillColor = hexToColor(style.color, style.opacity * 0.08);
+
+  if (scaledCompBounds.length < 2) return;
+
+  for (let i = 0; i < scaledCompBounds.length; i++) {
+    for (let j = i + 1; j < scaledCompBounds.length; j++) {
+      const a = scaledCompBounds[i];
+      const b = scaledCompBounds[j];
+
+      // Horizontal spacing
+      const leftComp = a.center.x < b.center.x ? a : b;
+      const rightComp = a.center.x < b.center.x ? b : a;
+      const hGap = rightComp.left - leftComp.right;
+
+      if (hGap > 5) {
+        const midY = (leftComp.center.y + rightComp.center.y) / 2;
+        // Spacing area
+        const rect = new paper.Path.Rectangle(
+          new paper.Point(leftComp.right, Math.min(leftComp.top, rightComp.top)),
+          new paper.Point(rightComp.left, Math.max(leftComp.bottom, rightComp.bottom))
+        );
+        rect.fillColor = fillColor;
+        rect.strokeColor = null;
+
+        // Arrow line
+        const line = new paper.Path.Line(
+          new paper.Point(leftComp.right, midY),
+          new paper.Point(rightComp.left, midY)
+        );
+        line.strokeColor = color;
+        line.strokeWidth = style.strokeWidth;
+
+        // Arrowheads
+        const arrowSize = 4;
+        const leftArrow = new paper.Path([
+          new paper.Point(leftComp.right + arrowSize, midY - arrowSize),
+          new paper.Point(leftComp.right, midY),
+          new paper.Point(leftComp.right + arrowSize, midY + arrowSize),
+        ]);
+        leftArrow.strokeColor = color;
+        leftArrow.strokeWidth = style.strokeWidth;
+
+        const rightArrow = new paper.Path([
+          new paper.Point(rightComp.left - arrowSize, midY - arrowSize),
+          new paper.Point(rightComp.left, midY),
+          new paper.Point(rightComp.left - arrowSize, midY + arrowSize),
+        ]);
+        rightArrow.strokeColor = color;
+        rightArrow.strokeWidth = style.strokeWidth;
+
+        // Label
+        const lbl = new paper.PointText(new paper.Point((leftComp.right + rightComp.left) / 2, midY - 6));
+        lbl.content = `${Math.round(hGap)}px`;
+        lbl.fillColor = labelColor;
+        lbl.fontSize = 9;
+        lbl.fontWeight = 'bold';
+        lbl.justification = 'center';
+      }
+
+      // Vertical spacing
+      const topComp = a.center.y < b.center.y ? a : b;
+      const bottomComp = a.center.y < b.center.y ? b : a;
+      const vGap = bottomComp.top - topComp.bottom;
+
+      if (vGap > 5) {
+        const midX = (topComp.center.x + bottomComp.center.x) / 2;
+        const line = new paper.Path.Line(
+          new paper.Point(midX, topComp.bottom),
+          new paper.Point(midX, bottomComp.top)
+        );
+        line.strokeColor = color;
+        line.strokeWidth = style.strokeWidth;
+
+        const arrowSize = 4;
+        const topArrow = new paper.Path([
+          new paper.Point(midX - arrowSize, topComp.bottom + arrowSize),
+          new paper.Point(midX, topComp.bottom),
+          new paper.Point(midX + arrowSize, topComp.bottom + arrowSize),
+        ]);
+        topArrow.strokeColor = color;
+        topArrow.strokeWidth = style.strokeWidth;
+
+        const bottomArrow = new paper.Path([
+          new paper.Point(midX - arrowSize, bottomComp.top - arrowSize),
+          new paper.Point(midX, bottomComp.top),
+          new paper.Point(midX + arrowSize, bottomComp.top - arrowSize),
+        ]);
+        bottomArrow.strokeColor = color;
+        bottomArrow.strokeWidth = style.strokeWidth;
+
+        const lbl = new paper.PointText(new paper.Point(midX + 8, (topComp.bottom + bottomComp.top) / 2 + 3));
+        lbl.content = `${Math.round(vGap)}px`;
+        lbl.fillColor = labelColor;
+        lbl.fontSize = 9;
+        lbl.fontWeight = 'bold';
+      }
+    }
+  }
+}
+
+export function renderRootRectangles(
+  bounds: paper.Rectangle,
+  style: StyleConfig
+) {
+  const roots = [
+    { name: '√2', value: Math.SQRT2, opacity: 1.0 },
+    { name: '√3', value: Math.sqrt(3), opacity: 0.7 },
+    { name: '√5', value: Math.sqrt(5), opacity: 0.5 },
+  ];
+
+  const cx = bounds.center.x;
+  const cy = bounds.center.y;
+  const baseW = bounds.width;
+
+  roots.forEach((root, idx) => {
+    const h = baseW / root.value;
+    const color = hexToColor(style.color, style.opacity * root.opacity);
+
+    const rect = new paper.Path.Rectangle(
+      new paper.Point(cx - baseW / 2, cy - h / 2),
+      new paper.Point(cx + baseW / 2, cy + h / 2)
+    );
+    rect.strokeColor = color;
+    rect.strokeWidth = style.strokeWidth;
+    rect.fillColor = null;
+    rect.dashArray = [8, 4];
+
+    const label = new paper.PointText(new paper.Point(cx + baseW / 2 + 6, cy - h / 2 + 10));
+    label.content = root.name;
+    label.fillColor = color;
+    label.fontSize = 9;
+    label.fontWeight = 'bold';
+  });
+}
+
+export function renderModularScale(
+  bounds: paper.Rectangle,
+  style: StyleConfig,
+  ratio: number = 1.618
+) {
+  const color = hexToColor(style.color, style.opacity);
+  const cx = bounds.center.x;
+  const cy = bounds.center.y;
+  const baseRadius = Math.min(bounds.width, bounds.height) * 0.08;
+
+  for (let i = 0; i < 8; i++) {
+    const r = baseRadius * Math.pow(ratio, i);
+    if (r > Math.max(bounds.width, bounds.height) * 1.5) break;
+
+    const circle = new paper.Path.Circle(new paper.Point(cx, cy), r);
+    circle.strokeColor = hexToColor(style.color, style.opacity * (1 - i * 0.1));
+    circle.strokeWidth = style.strokeWidth;
+    circle.fillColor = null;
+    circle.dashArray = i > 3 ? [4, 4] : [];
+
+    if (i > 0 && r > 15) {
+      const label = new paper.PointText(new paper.Point(cx + r + 5, cy - 3));
+      label.content = `×${ratio.toFixed(3)}^${i}`;
+      label.fillColor = hexToColor(style.color, style.opacity * 0.7);
+      label.fontSize = 8;
+    }
+  }
+}
+
+export function renderAlignmentGuides(
+  bounds: paper.Rectangle,
+  scaledCompBounds: paper.Rectangle[],
+  style: StyleConfig
+) {
+  if (scaledCompBounds.length < 2) return;
+
+  const color = hexToColor(style.color, style.opacity);
+  const dimColor = hexToColor(style.color, style.opacity * 0.4);
+  const threshold = 3; // pixel tolerance for alignment detection
+
+  const edges = scaledCompBounds.map(cb => ({
+    top: cb.top, bottom: cb.bottom, left: cb.left, right: cb.right,
+    centerX: cb.center.x, centerY: cb.center.y,
+  }));
+
+  // Check alignment between all pairs
+  for (let i = 0; i < edges.length; i++) {
+    for (let j = i + 1; j < edges.length; j++) {
+      const a = edges[i], b = edges[j];
+      const checks = [
+        { aVal: a.top, bVal: b.top, y: true, label: 'top' },
+        { aVal: a.bottom, bVal: b.bottom, y: true, label: 'bottom' },
+        { aVal: a.centerY, bVal: b.centerY, y: true, label: 'center-y' },
+        { aVal: a.left, bVal: b.left, y: false, label: 'left' },
+        { aVal: a.right, bVal: b.right, y: false, label: 'right' },
+        { aVal: a.centerX, bVal: b.centerX, y: false, label: 'center-x' },
+      ];
+
+      checks.forEach(check => {
+        if (Math.abs(check.aVal - check.bVal) < threshold) {
+          const avgVal = (check.aVal + check.bVal) / 2;
+          if (check.y) {
+            const line = new paper.Path.Line(
+              new paper.Point(bounds.left - 30, avgVal),
+              new paper.Point(bounds.right + 30, avgVal)
+            );
+            line.strokeColor = check.label.includes('center') ? color : dimColor;
+            line.strokeWidth = style.strokeWidth;
+            line.dashArray = [3, 3];
+          } else {
+            const line = new paper.Path.Line(
+              new paper.Point(avgVal, bounds.top - 30),
+              new paper.Point(avgVal, bounds.bottom + 30)
+            );
+            line.strokeColor = check.label.includes('center') ? color : dimColor;
+            line.strokeWidth = style.strokeWidth;
+            line.dashArray = [3, 3];
+          }
+        }
+      });
+    }
+  }
+}
+
+export function renderSafeZone(
+  bounds: paper.Rectangle,
+  style: StyleConfig,
+  margin: number = 0.1
+) {
+  const color = hexToColor(style.color, style.opacity);
+  const fillColor = hexToColor(style.color, style.opacity * 0.06);
+
+  const insetX = bounds.width * margin;
+  const insetY = bounds.height * margin;
+
+  const safeRect = new paper.Path.Rectangle(
+    new paper.Point(bounds.left + insetX, bounds.top + insetY),
+    new paper.Point(bounds.right - insetX, bounds.bottom - insetY)
+  );
+  safeRect.strokeColor = color;
+  safeRect.strokeWidth = style.strokeWidth * 1.5;
+  safeRect.fillColor = null;
+  safeRect.dashArray = [8, 4];
+
+  // Fill the outside area (4 rects)
+  const outerRects = [
+    [bounds.left, bounds.top, bounds.right, bounds.top + insetY],
+    [bounds.left, bounds.bottom - insetY, bounds.right, bounds.bottom],
+    [bounds.left, bounds.top + insetY, bounds.left + insetX, bounds.bottom - insetY],
+    [bounds.right - insetX, bounds.top + insetY, bounds.right, bounds.bottom - insetY],
+  ];
+  outerRects.forEach(([x1, y1, x2, y2]) => {
+    const r = new paper.Path.Rectangle(new paper.Point(x1, y1), new paper.Point(x2, y2));
+    r.fillColor = fillColor;
+    r.strokeColor = null;
+  });
+
+  // Label
+  const label = new paper.PointText(new paper.Point(bounds.left + insetX + 4, bounds.top + insetY + 12));
+  label.content = 'SAFE ZONE';
+  label.fillColor = hexToColor(style.color, style.opacity * 0.6);
+  label.fontSize = 8;
+  label.fontWeight = 'bold';
+}

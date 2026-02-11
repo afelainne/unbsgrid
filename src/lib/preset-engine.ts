@@ -21,6 +21,8 @@ const allOff: GeometryOptions = {
   boundingRects: false, circles: false, diagonals: false, goldenRatio: false,
   centerLines: false, tangentLines: false, goldenSpiral: false, isometricGrid: false,
   bezierHandles: false, typographicProportions: false, thirdLines: false,
+  symmetryAxes: false, angleMeasurements: false, spacingGuides: false,
+  rootRectangles: false, modularScale: false, alignmentGuides: false, safeZone: false,
 };
 
 const defaultStyle = (color: string, opacity: number, strokeWidth: number) => ({ color, opacity, strokeWidth });
@@ -37,6 +39,13 @@ const defaultStyles: GeometryStyles = {
   bezierHandles:          defaultStyle('#ff5577', 0.6, 1),
   typographicProportions: defaultStyle('#88ddaa', 0.5, 1),
   thirdLines:             defaultStyle('#aa88ff', 0.4, 1),
+  symmetryAxes:           defaultStyle('#ff66b2', 0.5, 1),
+  angleMeasurements:      defaultStyle('#ffaa33', 0.55, 1),
+  spacingGuides:          defaultStyle('#33ccff', 0.5, 1),
+  rootRectangles:         defaultStyle('#cc77ff', 0.45, 1),
+  modularScale:           defaultStyle('#77ddaa', 0.4, 1),
+  alignmentGuides:        defaultStyle('#ff7744', 0.4, 0.8),
+  safeZone:               defaultStyle('#44cc88', 0.35, 1.2),
 };
 
 export function getBuiltinPresets(): GeometryPreset[] {
@@ -70,6 +79,8 @@ export function getBuiltinPresets(): GeometryPreset[] {
         boundingRects: true, circles: true, diagonals: true, goldenRatio: true,
         centerLines: true, tangentLines: true, goldenSpiral: true, isometricGrid: true,
         bezierHandles: true, typographicProportions: true, thirdLines: true,
+        symmetryAxes: true, angleMeasurements: true, spacingGuides: true,
+        rootRectangles: true, modularScale: true, alignmentGuides: true, safeZone: true,
       },
       geometryStyles: { ...defaultStyles },
       clearspaceValue: 1, clearspaceUnit: 'logomark', showGrid: true, gridSubdivisions: 8,
