@@ -1,12 +1,175 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import React, { useState, useCallback, useRef } from 'react';
+import paper from 'paper';
+import { Download, Grid3X3, Shield } from 'lucide-react';
+import SVGDropZone from '@/components/SVGDropZone';
+import PreviewCanvas from '@/components/PreviewCanvas';
+import UnitSelector from '@/components/UnitSelector';
+import InfoTooltip from '@/components/InfoTooltip';
+import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { parseSVG, invertComponents, exportSVG, type ParsedSVG, type ClearspaceUnit } from '@/lib/svg-engine';
 
 const Index = () => {
+  const [parsedSVG, setParsedSVG] = useState<ParsedSVG | null>(null);
+  const [clearspaceValue, setClearspaceValue] = useState(1);
+  const [clearspaceUnit, setClearspaceUnit] = useState<ClearspaceUnit>('logomark');
+  const [showGrid, setShowGrid] = useState(false);
+  const [gridSubdivisions, setGridSubdivisions] = useState(8);
+  const [isInverted, setIsInverted] = useState(false);
+  const projectRef = useRef<paper.Project | null>(null);
+  const hiddenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const handleSVGLoaded = useCallback((svgString: string) => {
+    // Create a hidden canvas for parsing
+    if (!hiddenCanvasRef.current) {
+      const c = document.createElement('canvas');
+      c.width = 1;
+      c.height = 1;
+      hiddenCanvasRef.current = c;
+    }
+    const parsed = parseSVG(svgString, hiddenCanvasRef.current);
+    setParsedSVG(parsed);
+    setIsInverted(false);
+  }, []);
+
+  const handleInvert = useCallback(() => {
+    if (!parsedSVG) return;
+    const newComponents = invertComponents(parsedSVG.components);
+    setParsedSVG({ ...parsedSVG, components: newComponents });
+    setIsInverted(!isInverted);
+  }, [parsedSVG, isInverted]);
+
+  const handleExport = useCallback(() => {
+    if (!projectRef.current) return;
+    const svgString = exportSVG(projectRef.current);
+    const blob = new Blob([svgString], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'akrivi-gridit-export.svg';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="flex h-screen w-screen overflow-hidden">
+      {/* Sidebar */}
+      <aside className="w-[280px] min-w-[280px] bg-sidebar border-r border-sidebar-border flex flex-col">
+        {/* Logo */}
+        <div className="px-4 py-4 border-b border-sidebar-border">
+          <h1 className="text-sm font-bold tracking-wide text-foreground">AKRIVI GRIDIT</h1>
+          <p className="text-[10px] text-muted-foreground mt-0.5">Brand Grid & Clearspace Generator</p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
+          {/* Upload Section */}
+          <section>
+            <div className="flex items-center gap-1.5 mb-2">
+              <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">SVG Upload</Label>
+            </div>
+            <SVGDropZone onSVGLoaded={handleSVGLoaded} />
+            {parsedSVG && (
+              <p className="text-[10px] text-muted-foreground mt-2">
+                {parsedSVG.components.length} component{parsedSVG.components.length !== 1 ? 's' : ''} detected
+              </p>
+            )}
+          </section>
+
+          <Separator className="bg-sidebar-border" />
+
+          {/* Clearspace Section */}
+          <section>
+            <div className="flex items-center gap-1.5 mb-3">
+              <Shield className="h-3.5 w-3.5 text-primary" />
+              <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">Clearspace</Label>
+              <InfoTooltip content="Define the protection zone around your logo. The 'X' value creates an exclusion area where no other elements should be placed." />
+            </div>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-[10px] text-muted-foreground mb-1 block">Value</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={clearspaceValue}
+                  onChange={(e) => setClearspaceValue(parseFloat(e.target.value) || 0)}
+                  className="h-8 bg-input border-border text-foreground text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-[10px] text-muted-foreground mb-1 block">Unit</Label>
+                <UnitSelector value={clearspaceUnit} onChange={setClearspaceUnit} />
+              </div>
+            </div>
+          </section>
+
+          <Separator className="bg-sidebar-border" />
+
+          {/* Grid Section */}
+          <section>
+            <div className="flex items-center gap-1.5 mb-3">
+              <Grid3X3 className="h-3.5 w-3.5 text-primary" />
+              <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">Construction Grid</Label>
+              <InfoTooltip content="Generate a modular construction grid based on the logomark dimensions. The grid helps maintain proportional consistency." />
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-foreground">Show Grid</Label>
+                <Switch checked={showGrid} onCheckedChange={setShowGrid} />
+              </div>
+              {showGrid && (
+                <>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground mb-1 block">Subdivisions</Label>
+                    <Input
+                      type="number"
+                      min={2}
+                      max={32}
+                      value={gridSubdivisions}
+                      onChange={(e) => setGridSubdivisions(parseInt(e.target.value) || 8)}
+                      className="h-8 bg-input border-border text-foreground text-xs"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs text-foreground">Invert Components</Label>
+                      <InfoTooltip content="Swap which element is treated as the icon vs. the wordmark for grid calculations." />
+                    </div>
+                    <Switch checked={isInverted} onCheckedChange={handleInvert} />
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* Export Button */}
+        <div className="px-4 py-4 border-t border-sidebar-border">
+          <Button
+            onClick={handleExport}
+            disabled={!parsedSVG}
+            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-9 text-xs font-semibold"
+          >
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            Export SVG
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main Canvas Area */}
+      <main className="flex-1 bg-background p-4">
+        <PreviewCanvas
+          parsedSVG={parsedSVG}
+          clearspaceValue={clearspaceValue}
+          clearspaceUnit={clearspaceUnit}
+          showGrid={showGrid}
+          gridSubdivisions={gridSubdivisions}
+          onProjectReady={(p) => { projectRef.current = p; }}
+        />
+      </main>
     </div>
   );
 };
