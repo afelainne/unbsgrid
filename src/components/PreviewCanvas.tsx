@@ -9,6 +9,7 @@ import {
   renderBezierHandles, renderTypographicProportions, renderThirdLines,
   renderSymmetryAxes, renderAngleMeasurements, renderSpacingGuides,
   renderRootRectangles, renderModularScale, renderAlignmentGuides, renderSafeZone,
+  renderPixelGrid, renderOpticalCenter, renderContrastGuide,
 } from '@/components/geometry-renderers';
 import { Button } from '@/components/ui/button';
 
@@ -23,6 +24,7 @@ interface PreviewCanvasProps {
   canvasBackground: CanvasBackground;
   modularScaleRatio?: number;
   safeZoneMargin?: number;
+  svgColorOverride?: string | null;
   onProjectReady?: (project: paper.Project) => void;
 }
 
@@ -37,7 +39,7 @@ const bgClasses: Record<CanvasBackground, string> = {
 const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions,
   geometryOptions, geometryStyles, canvasBackground, modularScaleRatio = 1.618,
-  safeZoneMargin = 0.1, onProjectReady,
+  safeZoneMargin = 0.1, svgColorOverride, onProjectReady,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -58,6 +60,22 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     paper.setup(canvas);
 
     const item = paper.project.importSVG(parsedSVG.originalSVG, { expandShapes: true });
+
+    // Apply color override
+    if (svgColorOverride) {
+      const overrideColor = new paper.Color(svgColorOverride);
+      const applyColor = (item: paper.Item) => {
+        if (item instanceof paper.Path || item instanceof paper.CompoundPath) {
+          if ((item as any).fillColor) (item as any).fillColor = overrideColor;
+          if ((item as any).strokeColor) (item as any).strokeColor = overrideColor;
+        }
+        if ((item as any).children) {
+          (item as any).children.forEach((child: paper.Item) => applyColor(child));
+        }
+      };
+      applyColor(item);
+    }
+
     const availW = canvas.width - CANVAS_PADDING * 2;
     const availH = canvas.height - CANVAS_PADDING * 2;
     const scale = Math.min(availW / item.bounds.width, availH / item.bounds.height) * zoom;
@@ -143,10 +161,13 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     if (geometryOptions.modularScale) renderModularScale(bounds, s.modularScale, modularScaleRatio);
     if (geometryOptions.alignmentGuides) renderAlignmentGuides(bounds, scaledCompBounds, s.alignmentGuides);
     if (geometryOptions.safeZone) renderSafeZone(bounds, s.safeZone, safeZoneMargin);
+    if (geometryOptions.pixelGrid) renderPixelGrid(bounds, s.pixelGrid, gridSubdivisions);
+    if (geometryOptions.opticalCenter) renderOpticalCenter(bounds, s.opticalCenter);
+    if (geometryOptions.contrastGuide) renderContrastGuide(bounds, s.contrastGuide);
 
     (paper.view as any).draw();
     onProjectReady?.(paper.project);
-  }, [parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions, geometryOptions, geometryStyles, zoom, panOffset, onProjectReady, modularScaleRatio, safeZoneMargin]);
+  }, [parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions, geometryOptions, geometryStyles, zoom, panOffset, onProjectReady, modularScaleRatio, safeZoneMargin, svgColorOverride, canvasBackground]);
 
   useEffect(() => { draw(); }, [draw]);
 

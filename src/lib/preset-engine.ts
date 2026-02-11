@@ -23,6 +23,7 @@ const allOff: GeometryOptions = {
   bezierHandles: false, typographicProportions: false, thirdLines: false,
   symmetryAxes: false, angleMeasurements: false, spacingGuides: false,
   rootRectangles: false, modularScale: false, alignmentGuides: false, safeZone: false,
+  pixelGrid: false, opticalCenter: false, contrastGuide: false,
 };
 
 const defaultStyle = (color: string, opacity: number, strokeWidth: number) => ({ color, opacity, strokeWidth });
@@ -46,6 +47,9 @@ const defaultStyles: GeometryStyles = {
   modularScale:           defaultStyle('#77ddaa', 0.4, 1),
   alignmentGuides:        defaultStyle('#ff7744', 0.4, 0.8),
   safeZone:               defaultStyle('#44cc88', 0.35, 1.2),
+  pixelGrid:              defaultStyle('#999999', 0.2, 0.5),
+  opticalCenter:          defaultStyle('#ff4488', 0.6, 1.5),
+  contrastGuide:          defaultStyle('#ffcc00', 0.4, 1),
 };
 
 export function getBuiltinPresets(): GeometryPreset[] {
@@ -81,6 +85,7 @@ export function getBuiltinPresets(): GeometryPreset[] {
         bezierHandles: true, typographicProportions: true, thirdLines: true,
         symmetryAxes: true, angleMeasurements: true, spacingGuides: true,
         rootRectangles: true, modularScale: true, alignmentGuides: true, safeZone: true,
+        pixelGrid: true, opticalCenter: true, contrastGuide: true,
       },
       geometryStyles: { ...defaultStyles },
       clearspaceValue: 1, clearspaceUnit: 'logomark', showGrid: true, gridSubdivisions: 8,
