@@ -7,18 +7,26 @@ export interface SVGComponent {
   isIcon: boolean;
 }
 
+export interface BezierSegmentData {
+  anchor: { x: number; y: number };
+  handleIn: { x: number; y: number };
+  handleOut: { x: number; y: number };
+  hasHandleIn: boolean;
+  hasHandleOut: boolean;
+}
+
 export interface ParsedSVG {
   components: SVGComponent[];
   fullBounds: paper.Rectangle;
   originalSVG: string;
   paperProject: paper.Project;
+  segments: BezierSegmentData[];
 }
 
 export type ClearspaceUnit = 'logomark' | 'pixels' | 'centimeters' | 'inches';
 
-// Conversion factors to pixels
 const UNIT_TO_PX: Record<ClearspaceUnit, number> = {
-  logomark: 1, // computed dynamically
+  logomark: 1,
   pixels: 1,
   centimeters: 28.346,
   inches: 72,
@@ -31,14 +39,45 @@ export function convertToPixels(value: number, unit: ClearspaceUnit, logomarkSiz
   return value * UNIT_TO_PX[unit];
 }
 
+export function extractBezierHandles(item: paper.Item): BezierSegmentData[] {
+  const results: BezierSegmentData[] = [];
+
+  function walk(it: paper.Item) {
+    if (it instanceof paper.Path && it.segments) {
+      for (const seg of it.segments) {
+        const anchor = seg.point;
+        const hIn = seg.handleIn;
+        const hOut = seg.handleOut;
+        results.push({
+          anchor: { x: anchor.x, y: anchor.y },
+          handleIn: { x: anchor.x + hIn.x, y: anchor.y + hIn.y },
+          handleOut: { x: anchor.x + hOut.x, y: anchor.y + hOut.y },
+          hasHandleIn: hIn.length > 0.5,
+          hasHandleOut: hOut.length > 0.5,
+        });
+      }
+    }
+    if (it instanceof paper.CompoundPath && it.children) {
+      for (const child of it.children) {
+        walk(child);
+      }
+    }
+    if (it.children && !(it instanceof paper.CompoundPath)) {
+      for (const child of it.children) {
+        walk(child);
+      }
+    }
+  }
+
+  walk(item);
+  return results;
+}
+
 export function parseSVG(svgString: string, canvas: HTMLCanvasElement): ParsedSVG {
-  // Setup paper.js on the canvas
   paper.setup(canvas);
   
-  // Import the SVG
   const item = paper.project.importSVG(svgString, { expandShapes: true });
   
-  // Collect all path items
   const components: SVGComponent[] = [];
   let idx = 0;
   
@@ -62,8 +101,6 @@ export function parseSVG(svgString: string, canvas: HTMLCanvasElement): ParsedSV
   
   collectPaths(item);
   
-  // Determine icon vs wordmark by heuristic: 
-  // the component with smallest width/height ratio or most square is likely the icon
   if (components.length > 1) {
     let bestIconIdx = 0;
     let bestRatio = Infinity;
@@ -80,12 +117,14 @@ export function parseSVG(svgString: string, canvas: HTMLCanvasElement): ParsedSV
   }
   
   const fullBounds = item.bounds;
+  const segments = extractBezierHandles(item);
   
   return {
     components,
     fullBounds,
     originalSVG: svgString,
     paperProject: paper.project,
+    segments,
   };
 }
 
@@ -130,11 +169,9 @@ export function generateGridLines(
   const stepX = ref.width / subdivisions;
   const stepY = ref.height / subdivisions;
   
-  // Generate grid across the full bounds using the icon's step size
   const startX = ref.left;
   const startY = ref.top;
   
-  // Extend grid to cover full bounds
   for (let x = startX; x <= bounds.right + stepX; x += stepX) {
     vertical.push(x);
   }
