@@ -1,100 +1,101 @@
 
-# Atualização de Visual e Cores para Tema Claro
 
-## Visão Geral
-Transformar a interface do **unbsgrid** de um tema escuro (Adobe Dark Mode) para um tema claro e minimalista, inspirado na imagem de referência. Isso inclui:
-- Mudança de paleta de cores para tons claros (cinza, bege, branco)
-- Destaque em amarelo/limão para elementos ativos/primários
-- Remoção de citações de "Akrivi Gridit" do código
-- Atualização das variáveis CSS e estilos relacionados
+# Novas Ferramentas + Modo de Cor do SVG + Correção de Cor de Destaque
 
-## 1. Mudanças de Paleta de Cores
+## 1. Correção da Cor de Destaque (#F0FF00)
 
-### Análise da Imagem de Referência
-- **Background principal**: Cinza claro/bege (#E8E8E8 ou similar)
-- **Cards/Containers**: Branco (#FFFFFF) com bordas sutis
-- **Texto primário**: Cinza escuro (#333333 ou #444444)
-- **Texto secundário**: Cinza médio (#777777)
-- **Destaque/Acento**: Amarelo vibrante (#FFFF00 ou #E8FF00) para elementos ativos
-- **Bordas**: Cinza muito claro (#D0D0D0)
+A cor primária atual é `54 100% 50%` (amarelo). A cor correta é `#F0FF00` = HSL `64 100% 50%`.
 
-### Mapeamento de Variáveis CSS (src/index.css)
+**Regra importante**: A cor `#F0FF00` deve aparecer APENAS em botões (CTA). Sliders, switches, checkboxes e selects devem usar cores neutras (cinza).
 
-Mudanças nas propriedades CSS custom `:root`:
+### Mudanças nos componentes UI:
 
-```
---background: 0 0% 93%;           // De 19% para 93% (claro)
---foreground: 0 0% 25%;           // De 90% para 25% (escuro)
+**`src/index.css`** - Atualizar `--primary` para `64 100% 50%` e criar variáveis neutras para controles de formulário.
 
---card: 0 0% 100%;                // De 15% para 100% (branco)
---card-foreground: 0 0% 20%;      // De 90% para 20% (escuro)
+**`src/components/ui/slider.tsx`** - Trocar `bg-primary` por cinza neutro (`bg-foreground/30`) no Range e `border-primary` por `border-foreground/40` no Thumb.
 
---popover: 0 0% 98%;              // De 12% para 98%
---popover-foreground: 0 0% 20%;   // De 90% para 20%
+**`src/components/ui/switch.tsx`** - Trocar `data-[state=checked]:bg-primary` por `data-[state=checked]:bg-foreground/60` (cinza escuro quando ativo).
 
---primary: 54 100% 50%;           // Muda para amarelo vibrante
---primary-foreground: 0 0% 10%;   // De 100% para 10% (texto escuro)
+**`src/components/ui/checkbox.tsx`** - Trocar `border-primary`, `data-[state=checked]:bg-primary` por variantes cinza (`border-foreground/30`, `data-[state=checked]:bg-foreground/70`).
 
---secondary: 0 0% 85%;            // De 22% para 85% (cinza claro)
---secondary-foreground: 0 0% 30%; // De 80% para 30%
+**`src/components/ui/select.tsx`** - Trocar `focus:bg-accent focus:text-accent-foreground` no SelectItem por `focus:bg-secondary focus:text-secondary-foreground`.
 
---muted: 0 0% 80%;                // De 25% para 80%
---muted-foreground: 0 0% 50%;     // De 55% para 50%
+**`src/pages/Index.tsx`** - Remover `data-[state=checked]:bg-primary data-[state=checked]:border-primary` inline dos Checkboxes (o componente base cuidará disso).
 
---accent: 54 100% 50%;            // Amarelo vibrante (mesmo do primary)
---accent-foreground: 0 0% 10%;    // Texto escuro
+---
 
---border: 0 0% 85%;               // De 27% para 85% (cinza claro)
---input: 0 0% 98%;                // De 5.5% para 98% (quase branco)
+## 2. Modo de Cor do SVG
 
---canvas: 0 0% 95%;               // De 24% para 95%
---surface: 0 0% 100%;             // De 15% para 100% (branco)
---surface-hover: 0 0% 95%;        // De 20% para 95%
+Nova seção "SVG Color" na sidebar que permite alterar a cor de todos os paths/fills do SVG importado.
 
---sidebar-background: 0 0% 98%;   // De 14% para 98%
---sidebar-foreground: 0 0% 30%;   // De 85% para 30%
---sidebar-primary: 54 100% 50%;   // Amarelo
---sidebar-primary-foreground: 0 0% 10%;
---sidebar-accent: 0 0% 90%;       // De 18% para 90%
---sidebar-accent-foreground: 0 0% 30%;
---sidebar-border: 0 0% 85%;       // De 22% para 85%
---ring: 54 100% 50%;              // Amarelo
-```
+### Funcionalidades:
+- **Presets de cor**: Preto, Branco, Vermelho, Azul, Verde, Cinza (botões com swatches)
+- **Cor manual**: Input de cor (color picker nativo) + campo hex
+- **Reset**: Botão para restaurar cores originais do SVG
 
-## 2. Atualizações de Scrollbar
+### Implementação:
 
-Mudança no CSS das scrollbars para tema claro:
-```css
-::-webkit-scrollbar-track: background hsl(0 0% 95%);  // De 14% para 95%
-::-webkit-scrollbar-thumb: background hsl(0 0% 70%);  // De 30% para 70%
-::-webkit-scrollbar-thumb:hover: background hsl(0 0% 60%);  // De 40% para 60%
-```
+**`src/pages/Index.tsx`**:
+- Novo state: `svgColorOverride: string | null` (null = cores originais)
+- Nova seção na sidebar entre "SVG Upload" e "Presets"
+- Presets: array de cores pré-definidas com nomes
+- Color picker nativo + input hex editável
+- Botão "Reset to Original"
 
-## 3. Remoção de Citações
+**`src/components/PreviewCanvas.tsx`**:
+- Nova prop: `svgColorOverride?: string | null`
+- Após `importSVG()`, se `svgColorOverride` estiver definido, iterar todos os children do item e aplicar `fillColor` e `strokeColor` com a cor escolhida
 
-### Arquivo: src/App.css
-- Remover comentário: `/* Akrivi Gridit — Global styles */`
-- Deixar o arquivo vazio ou com um comentário genérico
+---
 
-## 4. Arquivos Afetados
+## 3. Novas Ferramentas Visuais
+
+### 3.1 Pixel Grid Overlay
+- Grid de pixels finos sobre o logo em alta resolução
+- Útil para verificar alinhamento em nível de pixel
+- Adicionado como nova opção em GeometryOptions: `pixelGrid`
+
+### 3.2 Optical Center
+- Marca o centro óptico do logo (ligeiramente acima do centro geométrico)
+- Cruz + círculo no ponto óptico
+- Nova opção: `opticalCenter`
+
+### 3.3 Contrast Ratio Guide  
+- Mostra áreas de alto e baixo contraste entre o logo e o background
+- Overlay com heatmap simplificado
+- Nova opção: `contrastGuide`
+
+### Mudanças em arquivos:
+
+**`src/pages/Index.tsx`**:
+- Adicionar `pixelGrid`, `opticalCenter`, `contrastGuide` ao GeometryOptions
+- Adicionar labels e estilos default
+- Adicionar ao grupo "Advanced"
+
+**`src/components/geometry-renderers.ts`**:
+- `renderPixelGrid(bounds, style, subdivisions)` - grid fino de 1px
+- `renderOpticalCenter(bounds, style)` - centro óptico com marcadores
+- `renderContrastGuide(bounds, style)` - guias de contraste
+
+**`src/components/PreviewCanvas.tsx`**:
+- Integrar 3 novos renderers
+
+**`src/lib/preset-engine.ts`**:
+- Adicionar novos campos nos presets default
+
+---
+
+## Resumo de Arquivos
 
 | Arquivo | Mudanças |
 |---------|----------|
-| `src/index.css` | Atualizar paleta de cores CSS custom (`:root`), scrollbar styling |
-| `src/App.css` | Remover citação de "Akrivi Gridit" |
-
-## 5. Impacto Visual
-
-- Interface muda de **Adobe Dark Mode** para **tema claro minimalista**
-- Elementos interativos ficam destacados em **amarelo vibrante** em vez de azul
-- Texto torna-se legível em fundo claro
-- Cards e containers ficam brancos com bordas sutis
-- Mantém toda a funcionalidade e estrutura intacta
-
-## 6. Notas Técnicas
-
-- Apenas CSS é modificado, nenhuma lógica TypeScript/React muda
-- Todos os componentes Radix UI respeitam as variáveis CSS e se adaptarão automaticamente
-- A mudança é global e coerente em toda a interface
-- Nenhum arquivo de componente precisa ser alterado
+| `src/index.css` | Cor primary para #F0FF00 (64 100% 50%) |
+| `src/components/ui/slider.tsx` | Range e thumb neutros (cinza) |
+| `src/components/ui/switch.tsx` | Checked state neutro (cinza) |
+| `src/components/ui/checkbox.tsx` | Checked/border neutros (cinza) |
+| `src/components/ui/select.tsx` | Focus state neutro |
+| `src/pages/Index.tsx` | Novo SVG Color mode, 3 novos geometry options, remover overrides inline de checkbox |
+| `src/components/PreviewCanvas.tsx` | Prop svgColorOverride + 3 novos renderers |
+| `src/components/geometry-renderers.ts` | 3 novas funções de renderização |
+| `src/lib/preset-engine.ts` | Novos campos nos presets |
 
