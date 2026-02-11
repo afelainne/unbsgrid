@@ -1,9 +1,9 @@
 
 
-# Akrivi Gridit — Brand Grid & Clearspace Generator
+# unbsgrid — Brand Grid & Construction Generator
 
 ## Overview
-A professional web tool for brand designers that automates the creation of construction grids and clearspace (exclusion zones) from SVG logos. Adobe Dark Mode aesthetic, fully client-side processing.
+A professional web tool for brand designers that automates the creation of construction grids, geometric overlays, and clearspace zones from SVG logos. Adobe Dark Mode aesthetic, fully client-side processing.
 
 ---
 
