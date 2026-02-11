@@ -1,100 +1,100 @@
 
+# Atualização de Visual e Cores para Tema Claro
 
-# Novas Ferramentas Visuais para unbsgrid
+## Visão Geral
+Transformar a interface do **unbsgrid** de um tema escuro (Adobe Dark Mode) para um tema claro e minimalista, inspirado na imagem de referência. Isso inclui:
+- Mudança de paleta de cores para tons claros (cinza, bege, branco)
+- Destaque em amarelo/limão para elementos ativos/primários
+- Remoção de citações de "Akrivi Gridit" do código
+- Atualização das variáveis CSS e estilos relacionados
 
-## Visao Geral
-Adicionar 7 novas ferramentas de geometria de construcao, controles de canvas (zoom, pan, background), e funcionalidades visuais avancadas para tornar o unbsgrid um gerador de grid profissional completo.
+## 1. Mudanças de Paleta de Cores
 
----
+### Análise da Imagem de Referência
+- **Background principal**: Cinza claro/bege (#E8E8E8 ou similar)
+- **Cards/Containers**: Branco (#FFFFFF) com bordas sutis
+- **Texto primário**: Cinza escuro (#333333 ou #444444)
+- **Texto secundário**: Cinza médio (#777777)
+- **Destaque/Acento**: Amarelo vibrante (#FFFF00 ou #E8FF00) para elementos ativos
+- **Bordas**: Cinza muito claro (#D0D0D0)
 
-## 1. Novas Ferramentas de Geometria (7 novos tipos)
+### Mapeamento de Variáveis CSS (src/index.css)
 
-### 1.1 Symmetry Axes (Eixos de Simetria)
-- Detecta e renderiza eixos de simetria vertical/horizontal do logo
-- Linhas tracejadas finas mostrando onde o logo se espelha
+Mudanças nas propriedades CSS custom `:root`:
 
-### 1.2 Angle Measurements (Medicoes de Angulos)
-- Mostra angulos entre diagonais e linhas principais
-- Arcos com labels de graus nos cantos dos componentes
+```
+--background: 0 0% 93%;           // De 19% para 93% (claro)
+--foreground: 0 0% 25%;           // De 90% para 25% (escuro)
 
-### 1.3 Spacing Guides (Guias de Espacamento)
-- Linhas duplas mostrando distancias entre componentes
-- Labels com valores em pixels entre cada par de componentes
-- Setas bidirecionais indicando gaps
+--card: 0 0% 100%;                // De 15% para 100% (branco)
+--card-foreground: 0 0% 20%;      // De 90% para 20% (escuro)
 
-### 1.4 Root Rectangles (Retangulos Raiz)
-- Retangulos com proporcoes matematicas classicas: raiz de 2, raiz de 3, raiz de 5
-- Overlay centrado no logo com cada proporcao em cor diferente
+--popover: 0 0% 98%;              // De 12% para 98%
+--popover-foreground: 0 0% 20%;   // De 90% para 20%
 
-### 1.5 Modular Scale
-- Circulos concentricos baseados em escala modular (ratio configuravel: 1.25, 1.333, 1.5, 1.618)
-- Mostra como os elementos se alinham com uma progressao harmonica
+--primary: 54 100% 50%;           // Muda para amarelo vibrante
+--primary-foreground: 0 0% 10%;   // De 100% para 10% (texto escuro)
 
-### 1.6 Alignment Guides
-- Linhas de alinhamento entre componentes (top-to-top, bottom-to-bottom, center-to-center)
-- Highlights onde componentes se alinham naturalmente
+--secondary: 0 0% 85%;            // De 22% para 85% (cinza claro)
+--secondary-foreground: 0 0% 30%; // De 80% para 30%
 
-### 1.7 Safe Zone (Zona Minima)
-- Area interna minima onde o logo deve permanecer legivel
-- Retangulo interno com margem configuravel, diferente do clearspace externo
+--muted: 0 0% 80%;                // De 25% para 80%
+--muted-foreground: 0 0% 50%;     // De 55% para 50%
 
-## 2. Controles de Canvas
+--accent: 54 100% 50%;            // Amarelo vibrante (mesmo do primary)
+--accent-foreground: 0 0% 10%;    // Texto escuro
 
-### 2.1 Toolbar no topo do canvas
-- Botoes: Zoom In (+), Zoom Out (-), Fit to Screen, Reset Zoom (100%)
-- Toggle de background: Branco, Escuro, Checkerboard (transparencia)
-- Toggle de snap-to-grid
+--border: 0 0% 85%;               // De 27% para 85% (cinza claro)
+--input: 0 0% 98%;                // De 5.5% para 98% (quase branco)
 
-### 2.2 Pan/Drag
-- Click + drag para mover o canvas (pan)
-- Indicador de posicao X,Y do cursor relativo ao logo
+--canvas: 0 0% 95%;               // De 24% para 95%
+--surface: 0 0% 100%;             // De 15% para 100% (branco)
+--surface-hover: 0 0% 95%;        // De 20% para 95%
 
-### 2.3 Ruler/Measurement Mode
-- Reguas no topo e na lateral do canvas mostrando pixels
-- Atualizam com zoom
-
-## 3. Export Avancado
-
-### 3.1 Opcoes de export
-- Dropdown com formatos: SVG, PNG (com resolucao configuravel: 1x, 2x, 4x)
-- Checkbox para incluir/excluir cada camada no export
-- Opcao de exportar apenas as guias (sem o logo)
-
----
-
-## 4. Implementacao Tecnica
-
-### Novos tipos em GeometryOptions
-```text
-symmetryAxes, angleMeasurements, spacingGuides,
-rootRectangles, modularScale, alignmentGuides, safeZone
+--sidebar-background: 0 0% 98%;   // De 14% para 98%
+--sidebar-foreground: 0 0% 30%;   // De 85% para 30%
+--sidebar-primary: 54 100% 50%;   // Amarelo
+--sidebar-primary-foreground: 0 0% 10%;
+--sidebar-accent: 0 0% 90%;       // De 18% para 90%
+--sidebar-accent-foreground: 0 0% 30%;
+--sidebar-border: 0 0% 85%;       // De 22% para 85%
+--ring: 54 100% 50%;              // Amarelo
 ```
 
-### Arquivos modificados
+## 2. Atualizações de Scrollbar
 
-| Arquivo | Mudancas |
+Mudança no CSS das scrollbars para tema claro:
+```css
+::-webkit-scrollbar-track: background hsl(0 0% 95%);  // De 14% para 95%
+::-webkit-scrollbar-thumb: background hsl(0 0% 70%);  // De 30% para 70%
+::-webkit-scrollbar-thumb:hover: background hsl(0 0% 60%);  // De 40% para 60%
+```
+
+## 3. Remoção de Citações
+
+### Arquivo: src/App.css
+- Remover comentário: `/* Akrivi Gridit — Global styles */`
+- Deixar o arquivo vazio ou com um comentário genérico
+
+## 4. Arquivos Afetados
+
+| Arquivo | Mudanças |
 |---------|----------|
-| `src/pages/Index.tsx` | Adicionar 7 novos campos em GeometryOptions/Styles, novos grupos na sidebar ("Measurement", "Harmony"), controles de background e export avancado |
-| `src/components/geometry-renderers.ts` | 7 novas funcoes de renderizacao |
-| `src/components/PreviewCanvas.tsx` | Integrar novos renderers, toolbar de canvas com zoom/pan/background, reguas, cursor position |
-| `src/lib/preset-engine.ts` | Atualizar presets builtin com novos campos |
+| `src/index.css` | Atualizar paleta de cores CSS custom (`:root`), scrollbar styling |
+| `src/App.css` | Remover citação de "Akrivi Gridit" |
 
-### Novos renderers em geometry-renderers.ts
+## 5. Impacto Visual
 
-- `renderSymmetryAxes(bounds, scaledCompBounds, style)` -- linhas de simetria
-- `renderAngleMeasurements(bounds, scaledCompBounds, style)` -- arcos com graus
-- `renderSpacingGuides(bounds, scaledCompBounds, style)` -- distancias entre componentes
-- `renderRootRectangles(bounds, style)` -- retangulos raiz de 2, 3, 5
-- `renderModularScale(bounds, style, ratio)` -- circulos em escala modular
-- `renderAlignmentGuides(bounds, scaledCompBounds, style)` -- linhas de alinhamento
-- `renderSafeZone(bounds, style, margin)` -- zona segura interna
+- Interface muda de **Adobe Dark Mode** para **tema claro minimalista**
+- Elementos interativos ficam destacados em **amarelo vibrante** em vez de azul
+- Texto torna-se legível em fundo claro
+- Cards e containers ficam brancos com bordas sutis
+- Mantém toda a funcionalidade e estrutura intacta
 
-### Canvas toolbar
-- Componente inline no topo do canvas com botoes de zoom, seletor de background, e indicador de posicao
-- Background modes: `'dark' | 'light' | 'checkerboard'`
-- Pan implementado via mouse drag + state de offset (translateX, translateY)
+## 6. Notas Técnicas
 
-### Export avancado
-- PNG export via `canvas.toDataURL('image/png')` com escala multiplicada
-- Dialog com checkboxes para selecionar camadas a exportar
+- Apenas CSS é modificado, nenhuma lógica TypeScript/React muda
+- Todos os componentes Radix UI respeitam as variáveis CSS e se adaptarão automaticamente
+- A mudança é global e coerente em toda a interface
+- Nenhum arquivo de componente precisa ser alterado
 
