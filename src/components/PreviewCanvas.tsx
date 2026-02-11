@@ -1,12 +1,16 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import paper from 'paper';
+import { ZoomIn, ZoomOut, Maximize, RotateCcw, Move } from 'lucide-react';
 import { type ParsedSVG, type ClearspaceUnit, computeClearspace, getLogomarkSize, generateGridLines } from '@/lib/svg-engine';
-import type { GeometryOptions, GeometryStyles } from '@/pages/Index';
+import type { GeometryOptions, GeometryStyles, CanvasBackground } from '@/pages/Index';
 import {
   renderBoundingRects, renderCircles, renderCenterLines, renderDiagonals,
   renderGoldenRatio, renderTangentLines, renderGoldenSpiral, renderIsometricGrid,
   renderBezierHandles, renderTypographicProportions, renderThirdLines,
+  renderSymmetryAxes, renderAngleMeasurements, renderSpacingGuides,
+  renderRootRectangles, renderModularScale, renderAlignmentGuides, renderSafeZone,
 } from '@/components/geometry-renderers';
+import { Button } from '@/components/ui/button';
 
 interface PreviewCanvasProps {
   parsedSVG: ParsedSVG | null;
@@ -16,18 +20,32 @@ interface PreviewCanvasProps {
   gridSubdivisions: number;
   geometryOptions: GeometryOptions;
   geometryStyles: GeometryStyles;
+  canvasBackground: CanvasBackground;
+  modularScaleRatio?: number;
+  safeZoneMargin?: number;
   onProjectReady?: (project: paper.Project) => void;
 }
 
 const CANVAS_PADDING = 60;
 
+const bgClasses: Record<CanvasBackground, string> = {
+  dark: 'bg-canvas',
+  light: 'bg-white',
+  checkerboard: '',
+};
+
 const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions,
-  geometryOptions, geometryStyles, onProjectReady,
+  geometryOptions, geometryStyles, canvasBackground, modularScaleRatio = 1.618,
+  safeZoneMargin = 0.1, onProjectReady,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
 
   const draw = useCallback(() => {
     if (!canvasRef.current || !parsedSVG) return;
@@ -45,7 +63,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     const scale = Math.min(availW / item.bounds.width, availH / item.bounds.height) * zoom;
 
     item.scale(scale);
-    item.position = new paper.Point(canvas.width / 2, canvas.height / 2);
+    item.position = new paper.Point(canvas.width / 2 + panOffset.x, canvas.height / 2 + panOffset.y);
 
     const bounds = item.bounds;
     const components = parsedSVG.components;
@@ -117,10 +135,18 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     }
     if (geometryOptions.typographicProportions) renderTypographicProportions(bounds, s.typographicProportions);
     if (geometryOptions.thirdLines) renderThirdLines(bounds, s.thirdLines);
+    // New renderers
+    if (geometryOptions.symmetryAxes) renderSymmetryAxes(bounds, scaledCompBounds, s.symmetryAxes);
+    if (geometryOptions.angleMeasurements) renderAngleMeasurements(bounds, scaledCompBounds, s.angleMeasurements);
+    if (geometryOptions.spacingGuides) renderSpacingGuides(bounds, scaledCompBounds, s.spacingGuides);
+    if (geometryOptions.rootRectangles) renderRootRectangles(bounds, s.rootRectangles);
+    if (geometryOptions.modularScale) renderModularScale(bounds, s.modularScale, modularScaleRatio);
+    if (geometryOptions.alignmentGuides) renderAlignmentGuides(bounds, scaledCompBounds, s.alignmentGuides);
+    if (geometryOptions.safeZone) renderSafeZone(bounds, s.safeZone, safeZoneMargin);
 
     (paper.view as any).draw();
     onProjectReady?.(paper.project);
-  }, [parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions, geometryOptions, geometryStyles, zoom, onProjectReady]);
+  }, [parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions, geometryOptions, geometryStyles, zoom, panOffset, onProjectReady, modularScaleRatio, safeZoneMargin]);
 
   useEffect(() => { draw(); }, [draw]);
 
@@ -137,16 +163,84 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     setZoom(z => Math.max(0.1, Math.min(5, z + (e.deltaY > 0 ? -0.1 : 0.1))));
   }, []);
 
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button === 1 || (e.button === 0 && e.altKey)) {
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+    }
+  }, [panOffset]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const container = containerRef.current;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      setCursorPos({ x: Math.round(e.clientX - rect.left), y: Math.round(e.clientY - rect.top) });
+    }
+    if (isPanning) {
+      setPanOffset({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
+    }
+  }, [isPanning, panStart]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsPanning(false);
+  }, []);
+
+  const fitToScreen = useCallback(() => {
+    setZoom(1);
+    setPanOffset({ x: 0, y: 0 });
+  }, []);
+
+  const checkerStyle = canvasBackground === 'checkerboard' ? {
+    backgroundImage: 'linear-gradient(45deg, hsl(0 0% 18%) 25%, transparent 25%), linear-gradient(-45deg, hsl(0 0% 18%) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, hsl(0 0% 18%) 75%), linear-gradient(-45deg, transparent 75%, hsl(0 0% 18%) 75%)',
+    backgroundSize: '20px 20px',
+    backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
+    backgroundColor: 'hsl(0 0% 22%)',
+  } : {};
+
   return (
-    <div ref={containerRef} className="relative w-full h-full bg-canvas rounded-lg overflow-hidden" onWheel={handleWheel}>
-      <canvas ref={canvasRef} className="w-full h-full" />
-      {!parsedSVG && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <p className="text-muted-foreground text-sm">Upload an SVG to get started</p>
+    <div className="relative w-full h-full flex flex-col">
+      {/* Canvas Toolbar */}
+      <div className="flex items-center gap-1 px-2 py-1.5 bg-sidebar border-b border-sidebar-border rounded-t-lg">
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom(z => Math.min(5, z + 0.25))}>
+          <ZoomIn className="h-3.5 w-3.5" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom(z => Math.max(0.1, z - 0.25))}>
+          <ZoomOut className="h-3.5 w-3.5" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={fitToScreen}>
+          <Maximize className="h-3.5 w-3.5" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setZoom(1); setPanOffset({ x: 0, y: 0 }); }}>
+          <RotateCcw className="h-3.5 w-3.5" />
+        </Button>
+        <div className="h-4 w-px bg-sidebar-border mx-1" />
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <Move className="h-3 w-3" />
+          <span>Alt+Drag to pan</span>
         </div>
-      )}
-      <div className="absolute bottom-3 right-3 bg-surface/80 backdrop-blur-sm rounded px-2 py-1">
-        <span className="text-xs text-muted-foreground">{Math.round(zoom * 100)}%</span>
+        <div className="ml-auto flex items-center gap-2 text-[10px] text-muted-foreground">
+          {cursorPos && <span>X:{cursorPos.x} Y:{cursorPos.y}</span>}
+          <span className="font-mono">{Math.round(zoom * 100)}%</span>
+        </div>
+      </div>
+
+      {/* Canvas */}
+      <div
+        ref={containerRef}
+        className={`relative flex-1 rounded-b-lg overflow-hidden ${bgClasses[canvasBackground]}`}
+        style={{ ...checkerStyle, cursor: isPanning ? 'grabbing' : 'default' }}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
+        <canvas ref={canvasRef} className="w-full h-full" />
+        {!parsedSVG && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <p className="text-muted-foreground text-sm">Upload an SVG to get started</p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import paper from 'paper';
-import { Download, Grid3X3, Shield, Layers, ChevronDown, ChevronRight } from 'lucide-react';
+import { Download, Grid3X3, Shield, Layers, ChevronDown, ChevronRight, Ruler, Hexagon } from 'lucide-react';
 import SVGDropZone from '@/components/SVGDropZone';
 import PreviewCanvas from '@/components/PreviewCanvas';
 import UnitSelector from '@/components/UnitSelector';
@@ -13,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { parseSVG, invertComponents, exportSVG, type ParsedSVG, type ClearspaceUnit } from '@/lib/svg-engine';
 import { getBuiltinPresets, loadPresetsFromStorage, savePresetsToStorage, createPreset, type GeometryPreset } from '@/lib/preset-engine';
 import PresetManager from '@/components/PresetManager';
@@ -31,6 +32,14 @@ export interface GeometryOptions {
   bezierHandles: boolean;
   typographicProportions: boolean;
   thirdLines: boolean;
+  // New tools
+  symmetryAxes: boolean;
+  angleMeasurements: boolean;
+  spacingGuides: boolean;
+  rootRectangles: boolean;
+  modularScale: boolean;
+  alignmentGuides: boolean;
+  safeZone: boolean;
 }
 
 export interface GeometryStyle {
@@ -40,6 +49,8 @@ export interface GeometryStyle {
 }
 
 export type GeometryStyles = Record<keyof GeometryOptions, GeometryStyle>;
+
+export type CanvasBackground = 'dark' | 'light' | 'checkerboard';
 
 const defaultStyles: GeometryStyles = {
   boundingRects:          { color: '#d94040', opacity: 0.6, strokeWidth: 1 },
@@ -53,6 +64,14 @@ const defaultStyles: GeometryStyles = {
   bezierHandles:          { color: '#ff5577', opacity: 0.6, strokeWidth: 1 },
   typographicProportions: { color: '#88ddaa', opacity: 0.5, strokeWidth: 1 },
   thirdLines:             { color: '#aa88ff', opacity: 0.4, strokeWidth: 1 },
+  // New tools
+  symmetryAxes:           { color: '#ff66b2', opacity: 0.5, strokeWidth: 1 },
+  angleMeasurements:      { color: '#ffaa33', opacity: 0.55, strokeWidth: 1 },
+  spacingGuides:          { color: '#33ccff', opacity: 0.5, strokeWidth: 1 },
+  rootRectangles:         { color: '#cc77ff', opacity: 0.45, strokeWidth: 1 },
+  modularScale:           { color: '#77ddaa', opacity: 0.4, strokeWidth: 1 },
+  alignmentGuides:        { color: '#ff7744', opacity: 0.4, strokeWidth: 0.8 },
+  safeZone:               { color: '#44cc88', opacity: 0.35, strokeWidth: 1.2 },
 };
 
 const geometryLabels: Record<keyof GeometryOptions, string> = {
@@ -67,11 +86,21 @@ const geometryLabels: Record<keyof GeometryOptions, string> = {
   bezierHandles: 'Bezier Handles',
   typographicProportions: 'Typographic Proportions',
   thirdLines: 'Rule of Thirds',
+  // New
+  symmetryAxes: 'Symmetry Axes',
+  angleMeasurements: 'Angle Measurements',
+  spacingGuides: 'Spacing Guides',
+  rootRectangles: 'Root Rectangles (√2, √3, √5)',
+  modularScale: 'Modular Scale',
+  alignmentGuides: 'Alignment Guides',
+  safeZone: 'Safe Zone',
 };
 
 const geometryGroups: { label: string; keys: (keyof GeometryOptions)[] }[] = [
   { label: 'Basic', keys: ['boundingRects', 'circles', 'centerLines', 'diagonals', 'tangentLines'] },
   { label: 'Proportions', keys: ['goldenRatio', 'goldenSpiral', 'thirdLines', 'typographicProportions'] },
+  { label: 'Measurement', keys: ['symmetryAxes', 'angleMeasurements', 'spacingGuides', 'alignmentGuides'] },
+  { label: 'Harmony', keys: ['rootRectangles', 'modularScale', 'safeZone'] },
   { label: 'Advanced', keys: ['bezierHandles', 'isometricGrid'] },
 ];
 
@@ -121,13 +150,18 @@ const Index = () => {
   const [showGrid, setShowGrid] = useState(false);
   const [gridSubdivisions, setGridSubdivisions] = useState(8);
   const [isInverted, setIsInverted] = useState(false);
+  const [canvasBackground, setCanvasBackground] = useState<CanvasBackground>('dark');
+  const [modularScaleRatio, setModularScaleRatio] = useState(1.618);
+  const [safeZoneMargin, setSafeZoneMargin] = useState(0.1);
   const [geometryOptions, setGeometryOptions] = useState<GeometryOptions>({
     boundingRects: false, circles: false, diagonals: false, goldenRatio: false,
     centerLines: false, tangentLines: false, goldenSpiral: false, isometricGrid: false,
     bezierHandles: false, typographicProportions: false, thirdLines: false,
+    symmetryAxes: false, angleMeasurements: false, spacingGuides: false,
+    rootRectangles: false, modularScale: false, alignmentGuides: false, safeZone: false,
   });
   const [geometryStyles, setGeometryStyles] = useState<GeometryStyles>({ ...defaultStyles });
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ Basic: true, Proportions: false, Advanced: false });
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ Basic: true, Proportions: false, Measurement: false, Harmony: false, Advanced: false });
   const [presets, setPresets] = useState<GeometryPreset[]>([]);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
@@ -220,6 +254,22 @@ const Index = () => {
     URL.revokeObjectURL(url);
   }, []);
 
+  const handleExportPNG = useCallback((scale: number) => {
+    if (!projectRef.current) return;
+    const canvas = document.querySelector('canvas');
+    if (!canvas) return;
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = canvas.width * scale;
+    exportCanvas.height = canvas.height * scale;
+    const ctx = exportCanvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(scale, scale);
+    ctx.drawImage(canvas, 0, 0);
+    const url = exportCanvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = url; a.download = `unbsgrid-export-${scale}x.png`; a.click();
+  }, []);
+
   const toggleGeometry = (key: keyof GeometryOptions) => {
     setGeometryOptions(prev => ({ ...prev, [key]: !prev[key] }));
   };
@@ -259,6 +309,31 @@ const Index = () => {
             onLoadClick={() => setLoadDialogOpen(true)}
             onRevert={handleRevertPreset}
           />
+
+          <Separator className="bg-sidebar-border" />
+
+          {/* Canvas Background */}
+          <section>
+            <div className="flex items-center gap-1.5 mb-3">
+              <Hexagon className="h-3.5 w-3.5 text-primary" />
+              <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">Canvas</Label>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-[10px] text-muted-foreground mb-1 block">Background</Label>
+                <Select value={canvasBackground} onValueChange={(v: CanvasBackground) => setCanvasBackground(v)}>
+                  <SelectTrigger className="h-8 bg-input border-border text-foreground text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dark">Dark</SelectItem>
+                    <SelectItem value="light">Light</SelectItem>
+                    <SelectItem value="checkerboard">Checkerboard</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </section>
 
           <Separator className="bg-sidebar-border" />
 
@@ -353,10 +428,44 @@ const Index = () => {
                           />
                         </label>
                         {geometryOptions[key] && (
-                          <StyleControl
-                            style={geometryStyles[key]}
-                            onChange={s => updateStyle(key, s)}
-                          />
+                          <>
+                            <StyleControl
+                              style={geometryStyles[key]}
+                              onChange={s => updateStyle(key, s)}
+                            />
+                            {/* Extra controls for modularScale */}
+                            {key === 'modularScale' && (
+                              <div className="pl-7 pr-1 pb-2">
+                                <Label className="text-[10px] text-muted-foreground mb-1 block">Ratio</Label>
+                                <Select value={String(modularScaleRatio)} onValueChange={v => setModularScaleRatio(parseFloat(v))}>
+                                  <SelectTrigger className="h-7 bg-input border-border text-foreground text-[10px]">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="1.25">1.250 (Minor Third)</SelectItem>
+                                    <SelectItem value="1.333">1.333 (Perfect Fourth)</SelectItem>
+                                    <SelectItem value="1.5">1.500 (Perfect Fifth)</SelectItem>
+                                    <SelectItem value="1.618">1.618 (Golden Ratio)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
+                            {/* Extra controls for safeZone */}
+                            {key === 'safeZone' && (
+                              <div className="pl-7 pr-1 pb-2">
+                                <div className="flex items-center gap-2">
+                                  <Label className="text-[10px] text-muted-foreground w-10">Margin</Label>
+                                  <Slider
+                                    min={1} max={30} step={1}
+                                    value={[Math.round(safeZoneMargin * 100)]}
+                                    onValueChange={v => setSafeZoneMargin(v[0] / 100)}
+                                    className="flex-1"
+                                  />
+                                  <span className="text-[9px] text-muted-foreground w-8 text-right">{Math.round(safeZoneMargin * 100)}%</span>
+                                </div>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     ))}
@@ -367,12 +476,21 @@ const Index = () => {
           </section>
         </div>
 
-        <div className="px-4 py-4 border-t border-sidebar-border">
+        <div className="px-4 py-3 border-t border-sidebar-border space-y-2">
           <Button onClick={handleExport} disabled={!parsedSVG}
             className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-9 text-xs font-semibold">
             <Download className="h-3.5 w-3.5 mr-1.5" />
             Export SVG
           </Button>
+          <div className="flex gap-1.5">
+            {[1, 2, 4].map(scale => (
+              <Button key={scale} variant="outline" size="sm" disabled={!parsedSVG}
+                onClick={() => handleExportPNG(scale)}
+                className="flex-1 h-7 text-[10px]">
+                PNG {scale}x
+              </Button>
+            ))}
+          </div>
         </div>
       </aside>
 
@@ -385,6 +503,9 @@ const Index = () => {
           gridSubdivisions={gridSubdivisions}
           geometryOptions={geometryOptions}
           geometryStyles={geometryStyles}
+          canvasBackground={canvasBackground}
+          modularScaleRatio={modularScaleRatio}
+          safeZoneMargin={safeZoneMargin}
           onProjectReady={p => { projectRef.current = p; }}
         />
       </main>
