@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import paper from 'paper';
-import { Download, Grid3X3, Shield, Circle, Triangle, Layers, Ruler } from 'lucide-react';
+import { Download, Grid3X3, Shield, Layers, ChevronDown, ChevronRight } from 'lucide-react';
 import SVGDropZone from '@/components/SVGDropZone';
 import PreviewCanvas from '@/components/PreviewCanvas';
 import UnitSelector from '@/components/UnitSelector';
@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { parseSVG, invertComponents, exportSVG, type ParsedSVG, type ClearspaceUnit } from '@/lib/svg-engine';
 
 export interface GeometryOptions {
@@ -20,7 +22,93 @@ export interface GeometryOptions {
   goldenRatio: boolean;
   centerLines: boolean;
   tangentLines: boolean;
+  goldenSpiral: boolean;
+  isometricGrid: boolean;
+  bezierHandles: boolean;
+  typographicProportions: boolean;
+  thirdLines: boolean;
 }
+
+export interface GeometryStyle {
+  color: string;
+  opacity: number;
+  strokeWidth: number;
+}
+
+export type GeometryStyles = Record<keyof GeometryOptions, GeometryStyle>;
+
+const defaultStyles: GeometryStyles = {
+  boundingRects:          { color: '#d94040', opacity: 0.6, strokeWidth: 1 },
+  circles:                { color: '#33b380', opacity: 0.5, strokeWidth: 1 },
+  centerLines:            { color: '#e69a1a', opacity: 0.5, strokeWidth: 1 },
+  diagonals:              { color: '#b34dd6', opacity: 0.4, strokeWidth: 1 },
+  goldenRatio:            { color: '#f2c00a', opacity: 0.45, strokeWidth: 1 },
+  tangentLines:           { color: '#66ccdd', opacity: 0.35, strokeWidth: 0.5 },
+  goldenSpiral:           { color: '#ff8c42', opacity: 0.5, strokeWidth: 1.5 },
+  isometricGrid:          { color: '#5eaaf7', opacity: 0.3, strokeWidth: 0.5 },
+  bezierHandles:          { color: '#ff5577', opacity: 0.6, strokeWidth: 1 },
+  typographicProportions: { color: '#88ddaa', opacity: 0.5, strokeWidth: 1 },
+  thirdLines:             { color: '#aa88ff', opacity: 0.4, strokeWidth: 1 },
+};
+
+const geometryLabels: Record<keyof GeometryOptions, string> = {
+  boundingRects: 'Bounding Rectangles',
+  circles: 'Inscribed / Circumscribed Circles',
+  centerLines: 'Center / Axis Lines',
+  diagonals: 'Diagonal Lines',
+  goldenRatio: 'Golden Ratio Circles',
+  tangentLines: 'Tangent Lines',
+  goldenSpiral: 'Golden Spiral',
+  isometricGrid: 'Isometric Grid',
+  bezierHandles: 'Bezier Handles',
+  typographicProportions: 'Typographic Proportions',
+  thirdLines: 'Rule of Thirds',
+};
+
+const geometryGroups: { label: string; keys: (keyof GeometryOptions)[] }[] = [
+  { label: 'Basic', keys: ['boundingRects', 'circles', 'centerLines', 'diagonals', 'tangentLines'] },
+  { label: 'Proportions', keys: ['goldenRatio', 'goldenSpiral', 'thirdLines', 'typographicProportions'] },
+  { label: 'Advanced', keys: ['bezierHandles', 'isometricGrid'] },
+];
+
+interface StyleControlProps {
+  style: GeometryStyle;
+  onChange: (s: GeometryStyle) => void;
+}
+
+const StyleControl: React.FC<StyleControlProps> = ({ style, onChange }) => (
+  <div className="pl-7 pr-1 space-y-2 pb-2">
+    <div className="flex items-center gap-2">
+      <Label className="text-[10px] text-muted-foreground w-10">Color</Label>
+      <input
+        type="color"
+        value={style.color}
+        onChange={e => onChange({ ...style, color: e.target.value })}
+        className="w-6 h-6 rounded border border-border bg-transparent cursor-pointer"
+      />
+    </div>
+    <div className="flex items-center gap-2">
+      <Label className="text-[10px] text-muted-foreground w-10">Opacity</Label>
+      <Slider
+        min={0} max={100} step={1}
+        value={[Math.round(style.opacity * 100)]}
+        onValueChange={v => onChange({ ...style, opacity: v[0] / 100 })}
+        className="flex-1"
+      />
+      <span className="text-[9px] text-muted-foreground w-8 text-right">{Math.round(style.opacity * 100)}%</span>
+    </div>
+    <div className="flex items-center gap-2">
+      <Label className="text-[10px] text-muted-foreground w-10">Stroke</Label>
+      <Slider
+        min={5} max={50} step={5}
+        value={[Math.round(style.strokeWidth * 10)]}
+        onValueChange={v => onChange({ ...style, strokeWidth: v[0] / 10 })}
+        className="flex-1"
+      />
+      <span className="text-[9px] text-muted-foreground w-8 text-right">{style.strokeWidth.toFixed(1)}</span>
+    </div>
+  </div>
+);
 
 const Index = () => {
   const [parsedSVG, setParsedSVG] = useState<ParsedSVG | null>(null);
@@ -30,21 +118,19 @@ const Index = () => {
   const [gridSubdivisions, setGridSubdivisions] = useState(8);
   const [isInverted, setIsInverted] = useState(false);
   const [geometryOptions, setGeometryOptions] = useState<GeometryOptions>({
-    boundingRects: false,
-    circles: false,
-    diagonals: false,
-    goldenRatio: false,
-    centerLines: false,
-    tangentLines: false,
+    boundingRects: false, circles: false, diagonals: false, goldenRatio: false,
+    centerLines: false, tangentLines: false, goldenSpiral: false, isometricGrid: false,
+    bezierHandles: false, typographicProportions: false, thirdLines: false,
   });
+  const [geometryStyles, setGeometryStyles] = useState<GeometryStyles>({ ...defaultStyles });
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ Basic: true, Proportions: false, Advanced: false });
   const projectRef = useRef<paper.Project | null>(null);
   const hiddenCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const handleSVGLoaded = useCallback((svgString: string) => {
     if (!hiddenCanvasRef.current) {
       const c = document.createElement('canvas');
-      c.width = 1;
-      c.height = 1;
+      c.width = 1; c.height = 1;
       hiddenCanvasRef.current = c;
     }
     const parsed = parseSVG(svgString, hiddenCanvasRef.current);
@@ -65,9 +151,7 @@ const Index = () => {
     const blob = new Blob([svgString], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = 'unbsgrid-export.svg';
-    a.click();
+    a.href = url; a.download = 'unbsgrid-export.svg'; a.click();
     URL.revokeObjectURL(url);
   }, []);
 
@@ -75,50 +159,46 @@ const Index = () => {
     setGeometryOptions(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const updateStyle = (key: keyof GeometryOptions, style: GeometryStyle) => {
+    setGeometryStyles(prev => ({ ...prev, [key]: style }));
+  };
+
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-[280px] min-w-[280px] bg-sidebar border-r border-sidebar-border flex flex-col">
-        {/* Logo */}
+      <aside className="w-[300px] min-w-[300px] bg-sidebar border-r border-sidebar-border flex flex-col">
         <div className="px-4 py-4 border-b border-sidebar-border">
           <h1 className="text-sm font-bold tracking-wide text-foreground">UNBSGRID</h1>
           <p className="text-[10px] text-muted-foreground mt-0.5">Brand Grid & Construction Generator</p>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
-          {/* Upload Section */}
+          {/* Upload */}
           <section>
-            <div className="flex items-center gap-1.5 mb-2">
-              <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">SVG Upload</Label>
-            </div>
+            <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider mb-2 block">SVG Upload</Label>
             <SVGDropZone onSVGLoaded={handleSVGLoaded} />
             {parsedSVG && (
               <p className="text-[10px] text-muted-foreground mt-2">
                 {parsedSVG.components.length} component{parsedSVG.components.length !== 1 ? 's' : ''} detected
+                {parsedSVG.segments.length > 0 && ` · ${parsedSVG.segments.length} bezier points`}
               </p>
             )}
           </section>
 
           <Separator className="bg-sidebar-border" />
 
-          {/* Clearspace Section */}
+          {/* Clearspace */}
           <section>
             <div className="flex items-center gap-1.5 mb-3">
               <Shield className="h-3.5 w-3.5 text-primary" />
               <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">Clearspace</Label>
-              <InfoTooltip content="Define the protection zone around your logo. The 'X' value creates an exclusion area where no other elements should be placed." />
+              <InfoTooltip content="Define the protection zone around your logo." />
             </div>
             <div className="space-y-3">
               <div>
                 <Label className="text-[10px] text-muted-foreground mb-1 block">Value</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  value={clearspaceValue}
-                  onChange={(e) => setClearspaceValue(parseFloat(e.target.value) || 0)}
-                  className="h-8 bg-input border-border text-foreground text-xs"
-                />
+                <Input type="number" min={0} step={0.5} value={clearspaceValue}
+                  onChange={e => setClearspaceValue(parseFloat(e.target.value) || 0)}
+                  className="h-8 bg-input border-border text-foreground text-xs" />
               </div>
               <div>
                 <Label className="text-[10px] text-muted-foreground mb-1 block">Unit</Label>
@@ -129,12 +209,12 @@ const Index = () => {
 
           <Separator className="bg-sidebar-border" />
 
-          {/* Construction Grid Section */}
+          {/* Construction Grid */}
           <section>
             <div className="flex items-center gap-1.5 mb-3">
               <Grid3X3 className="h-3.5 w-3.5 text-primary" />
               <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">Construction Grid</Label>
-              <InfoTooltip content="Generate a modular construction grid based on the logomark dimensions." />
+              <InfoTooltip content="Generate a modular construction grid." />
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -145,19 +225,14 @@ const Index = () => {
                 <>
                   <div>
                     <Label className="text-[10px] text-muted-foreground mb-1 block">Subdivisions</Label>
-                    <Input
-                      type="number"
-                      min={2}
-                      max={32}
-                      value={gridSubdivisions}
-                      onChange={(e) => setGridSubdivisions(parseInt(e.target.value) || 8)}
-                      className="h-8 bg-input border-border text-foreground text-xs"
-                    />
+                    <Input type="number" min={2} max={32} value={gridSubdivisions}
+                      onChange={e => setGridSubdivisions(parseInt(e.target.value) || 8)}
+                      className="h-8 bg-input border-border text-foreground text-xs" />
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
                       <Label className="text-xs text-foreground">Invert Components</Label>
-                      <InfoTooltip content="Swap which element is treated as the icon vs. the wordmark for grid calculations." />
+                      <InfoTooltip content="Swap icon vs. wordmark detection." />
                     </div>
                     <Switch checked={isInverted} onCheckedChange={handleInvert} />
                   </div>
@@ -168,80 +243,63 @@ const Index = () => {
 
           <Separator className="bg-sidebar-border" />
 
-          {/* Construction Geometry Section */}
+          {/* Construction Geometry */}
           <section>
             <div className="flex items-center gap-1.5 mb-3">
               <Layers className="h-3.5 w-3.5 text-primary" />
               <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">Construction Geometry</Label>
-              <InfoTooltip content="Overlay geometric construction aids like circles, rectangles, diagonals, and golden ratio guides used in professional logo design." />
+              <InfoTooltip content="Overlay geometric construction aids with per-layer color, opacity, and stroke controls." />
             </div>
-            <div className="space-y-2.5">
-              <label className="flex items-center gap-2.5 cursor-pointer group">
-                <Checkbox
-                  checked={geometryOptions.boundingRects}
-                  onCheckedChange={() => toggleGeometry('boundingRects')}
-                  className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                />
-                <span className="text-xs text-foreground group-hover:text-primary transition-colors">Bounding Rectangles</span>
-              </label>
-              <label className="flex items-center gap-2.5 cursor-pointer group">
-                <Checkbox
-                  checked={geometryOptions.circles}
-                  onCheckedChange={() => toggleGeometry('circles')}
-                  className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                />
-                <span className="text-xs text-foreground group-hover:text-primary transition-colors">Inscribed / Circumscribed Circles</span>
-              </label>
-              <label className="flex items-center gap-2.5 cursor-pointer group">
-                <Checkbox
-                  checked={geometryOptions.centerLines}
-                  onCheckedChange={() => toggleGeometry('centerLines')}
-                  className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                />
-                <span className="text-xs text-foreground group-hover:text-primary transition-colors">Center / Axis Lines</span>
-              </label>
-              <label className="flex items-center gap-2.5 cursor-pointer group">
-                <Checkbox
-                  checked={geometryOptions.diagonals}
-                  onCheckedChange={() => toggleGeometry('diagonals')}
-                  className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                />
-                <span className="text-xs text-foreground group-hover:text-primary transition-colors">Diagonal Lines</span>
-              </label>
-              <label className="flex items-center gap-2.5 cursor-pointer group">
-                <Checkbox
-                  checked={geometryOptions.goldenRatio}
-                  onCheckedChange={() => toggleGeometry('goldenRatio')}
-                  className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                />
-                <span className="text-xs text-foreground group-hover:text-primary transition-colors">Golden Ratio Circles</span>
-              </label>
-              <label className="flex items-center gap-2.5 cursor-pointer group">
-                <Checkbox
-                  checked={geometryOptions.tangentLines}
-                  onCheckedChange={() => toggleGeometry('tangentLines')}
-                  className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                />
-                <span className="text-xs text-foreground group-hover:text-primary transition-colors">Tangent Lines</span>
-              </label>
+            <div className="space-y-1">
+              {geometryGroups.map(group => (
+                <Collapsible
+                  key={group.label}
+                  open={openGroups[group.label]}
+                  onOpenChange={open => setOpenGroups(p => ({ ...p, [group.label]: open }))}
+                >
+                  <CollapsibleTrigger className="flex items-center gap-1.5 w-full py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors">
+                    {openGroups[group.label] ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                    {group.label}
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-1">
+                    {group.keys.map(key => (
+                      <div key={key}>
+                        <label className="flex items-center gap-2.5 cursor-pointer group py-0.5">
+                          <Checkbox
+                            checked={geometryOptions[key]}
+                            onCheckedChange={() => toggleGeometry(key)}
+                            className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                          />
+                          <span className="text-xs text-foreground group-hover:text-primary transition-colors">{geometryLabels[key]}</span>
+                          <span
+                            className="ml-auto w-3 h-3 rounded-full border border-border"
+                            style={{ backgroundColor: geometryStyles[key].color }}
+                          />
+                        </label>
+                        {geometryOptions[key] && (
+                          <StyleControl
+                            style={geometryStyles[key]}
+                            onChange={s => updateStyle(key, s)}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
+              ))}
             </div>
           </section>
         </div>
 
-        {/* Export Button */}
         <div className="px-4 py-4 border-t border-sidebar-border">
-          <Button
-            onClick={handleExport}
-            disabled={!parsedSVG}
-            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-9 text-xs font-semibold"
-          >
+          <Button onClick={handleExport} disabled={!parsedSVG}
+            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-9 text-xs font-semibold">
             <Download className="h-3.5 w-3.5 mr-1.5" />
             Export SVG
           </Button>
         </div>
       </aside>
 
-      {/* Main Canvas Area */}
       <main className="flex-1 bg-background p-4">
         <PreviewCanvas
           parsedSVG={parsedSVG}
@@ -250,7 +308,8 @@ const Index = () => {
           showGrid={showGrid}
           gridSubdivisions={gridSubdivisions}
           geometryOptions={geometryOptions}
-          onProjectReady={(p) => { projectRef.current = p; }}
+          geometryStyles={geometryStyles}
+          onProjectReady={p => { projectRef.current = p; }}
         />
       </main>
     </div>
