@@ -1,174 +1,100 @@
 
-# Sistema de Presets de Configurações de Geometria para unbsgrid
 
-## Visão Geral
-Implementar um sistema completo de **salvar e carregar presets** de configurações de geometria, permitindo que designers reutilizem suas configurações padrão (como "Minimalista", "Detalhado", "Proporções Áureas", etc.).
+# Novas Ferramentas Visuais para unbsgrid
 
-## 1. Estrutura de Dados
+## Visao Geral
+Adicionar 7 novas ferramentas de geometria de construcao, controles de canvas (zoom, pan, background), e funcionalidades visuais avancadas para tornar o unbsgrid um gerador de grid profissional completo.
 
-### Nova Interface: `GeometryPreset`
-```typescript
-interface GeometryPreset {
-  id: string;
-  name: string;
-  description?: string;
-  geometryOptions: GeometryOptions;
-  geometryStyles: GeometryStyles;
-  clearspaceValue: number;
-  clearspaceUnit: ClearspaceUnit;
-  showGrid: boolean;
-  gridSubdivisions: number;
-  createdAt: number;
-}
+---
+
+## 1. Novas Ferramentas de Geometria (7 novos tipos)
+
+### 1.1 Symmetry Axes (Eixos de Simetria)
+- Detecta e renderiza eixos de simetria vertical/horizontal do logo
+- Linhas tracejadas finas mostrando onde o logo se espelha
+
+### 1.2 Angle Measurements (Medicoes de Angulos)
+- Mostra angulos entre diagonais e linhas principais
+- Arcos com labels de graus nos cantos dos componentes
+
+### 1.3 Spacing Guides (Guias de Espacamento)
+- Linhas duplas mostrando distancias entre componentes
+- Labels com valores em pixels entre cada par de componentes
+- Setas bidirecionais indicando gaps
+
+### 1.4 Root Rectangles (Retangulos Raiz)
+- Retangulos com proporcoes matematicas classicas: raiz de 2, raiz de 3, raiz de 5
+- Overlay centrado no logo com cada proporcao em cor diferente
+
+### 1.5 Modular Scale
+- Circulos concentricos baseados em escala modular (ratio configuravel: 1.25, 1.333, 1.5, 1.618)
+- Mostra como os elementos se alinham com uma progressao harmonica
+
+### 1.6 Alignment Guides
+- Linhas de alinhamento entre componentes (top-to-top, bottom-to-bottom, center-to-center)
+- Highlights onde componentes se alinham naturalmente
+
+### 1.7 Safe Zone (Zona Minima)
+- Area interna minima onde o logo deve permanecer legivel
+- Retangulo interno com margem configuravel, diferente do clearspace externo
+
+## 2. Controles de Canvas
+
+### 2.1 Toolbar no topo do canvas
+- Botoes: Zoom In (+), Zoom Out (-), Fit to Screen, Reset Zoom (100%)
+- Toggle de background: Branco, Escuro, Checkerboard (transparencia)
+- Toggle de snap-to-grid
+
+### 2.2 Pan/Drag
+- Click + drag para mover o canvas (pan)
+- Indicador de posicao X,Y do cursor relativo ao logo
+
+### 2.3 Ruler/Measurement Mode
+- Reguas no topo e na lateral do canvas mostrando pixels
+- Atualizam com zoom
+
+## 3. Export Avancado
+
+### 3.1 Opcoes de export
+- Dropdown com formatos: SVG, PNG (com resolucao configuravel: 1x, 2x, 4x)
+- Checkbox para incluir/excluir cada camada no export
+- Opcao de exportar apenas as guias (sem o logo)
+
+---
+
+## 4. Implementacao Tecnica
+
+### Novos tipos em GeometryOptions
+```text
+symmetryAxes, angleMeasurements, spacingGuides,
+rootRectangles, modularScale, alignmentGuides, safeZone
 ```
 
-### Presets Padrão (Built-in)
-Criar 4 presets predefinidos como exemplos:
-- **"Minimalista"**: Apenas bounding rects e center lines (limpo e simples)
-- **"Proporções Áureas"**: Golden ratio, golden spiral, third lines (para design harmônico)
-- **"Análise Completa"**: Todos os geometry options ativados (máximo detalhe)
-- **"Construção Técnica"**: Bezier handles, isometric grid, center lines (para análise estrutural)
+### Arquivos modificados
 
-## 2. Funcionalidades Principais
+| Arquivo | Mudancas |
+|---------|----------|
+| `src/pages/Index.tsx` | Adicionar 7 novos campos em GeometryOptions/Styles, novos grupos na sidebar ("Measurement", "Harmony"), controles de background e export avancado |
+| `src/components/geometry-renderers.ts` | 7 novas funcoes de renderizacao |
+| `src/components/PreviewCanvas.tsx` | Integrar novos renderers, toolbar de canvas com zoom/pan/background, reguas, cursor position |
+| `src/lib/preset-engine.ts` | Atualizar presets builtin com novos campos |
 
-### 2.1 UI para Gerenciar Presets
-Novo painel "Presets" na sidebar com:
-- **Seletor de Presets Ativo**: Dropdown mostrando o preset atualmente carregado
-- **Botão "Salvar Preset Atual"**: Abre um dialog para nomear/descrever
-- **Botão "Carregar Preset"**: Abre um dialog com lista de presets salvos
-- **Botão "Deletar Preset"**: Próximo ao nome do preset ativo (com confirmação)
-- **Indicador Visual**: Mostra se a configuração atual foi modificada após carregar um preset
+### Novos renderers em geometry-renderers.ts
 
-### 2.2 LocalStorage Persistence
-- Salvar presets no `localStorage` com chave `'unbsgrid-presets'` (JSON stringified)
-- Carregar presets ao inicializar o app
-- Validação de dados para prevenir corrupção
+- `renderSymmetryAxes(bounds, scaledCompBounds, style)` -- linhas de simetria
+- `renderAngleMeasurements(bounds, scaledCompBounds, style)` -- arcos com graus
+- `renderSpacingGuides(bounds, scaledCompBounds, style)` -- distancias entre componentes
+- `renderRootRectangles(bounds, style)` -- retangulos raiz de 2, 3, 5
+- `renderModularScale(bounds, style, ratio)` -- circulos em escala modular
+- `renderAlignmentGuides(bounds, scaledCompBounds, style)` -- linhas de alinhamento
+- `renderSafeZone(bounds, style, margin)` -- zona segura interna
 
-### 2.3 Dialog para Salvar Preset
-- Campo de texto para nome do preset (obrigatório)
-- Campo de textarea para descrição (opcional)
-- Botões: "Salvar" e "Cancelar"
-- Validação: Nome não pode estar vazio, não pode duplicar nomes existentes
+### Canvas toolbar
+- Componente inline no topo do canvas com botoes de zoom, seletor de background, e indicador de posicao
+- Background modes: `'dark' | 'light' | 'checkerboard'`
+- Pan implementado via mouse drag + state de offset (translateX, translateY)
 
-### 2.4 Dialog para Carregar/Deletar Presets
-- Lista de presets (built-in + salvos)
-- Indicador visual para presets built-in (badge "Padrão")
-- Cada item mostra: Nome, Descrição, Data de criação
-- Ações: Botão para carregar, botão para deletar (apenas para presets salvos)
-- Confirmação antes de deletar
+### Export avancado
+- PNG export via `canvas.toDataURL('image/png')` com escala multiplicada
+- Dialog com checkboxes para selecionar camadas a exportar
 
-## 3. Implementação Técnica
-
-### 3.1 Novo Arquivo: `src/lib/preset-engine.ts`
-```typescript
-// Funções auxiliares para gerenciar presets
-- loadPresetsFromStorage(): GeometryPreset[]
-- savePresetsToStorage(presets: GeometryPreset[]): void
-- createPreset(config): GeometryPreset
-- deletePreset(id: string): void
-- getBuiltinPresets(): GeometryPreset[]
-- validatePreset(preset: any): boolean
-```
-
-### 3.2 Componentes Novos
-- **`PresetManager.tsx`**: Painel com dropdown e botões
-- **`SavePresetDialog.tsx`**: Dialog para salvar novo preset
-- **`LoadPresetDialog.tsx`**: Dialog para carregar/deletar presets
-
-### 3.3 Alterações em `src/pages/Index.tsx`
-- Adicionar estado para presets: `const [presets, setPresets] = useState<GeometryPreset[]>([...]);`
-- Adicionar estado para preset ativo: `const [activePresetId, setActivePresetId] = useState<string | null>(null);`
-- Adicionar função para aplicar preset: `applyPreset(preset)`
-- Integrar novos diálogos na UI
-- Chamar `loadPresetsFromStorage()` no `useEffect` de inicialização
-
-### 3.4 Alterações em `src/components/PreviewCanvas.tsx`
-- Sem alterações necessárias (recebe props já processadas)
-
-## 4. Fluxo de Usuário
-
-1. **Usar Presets Padrão**:
-   - App carrega com "Análise Completa" como padrão
-   - Usuário clica em "Carregar Preset"
-   - Seleciona um preset (ex: "Minimalista")
-   - Todas as configs são aplicadas instantaneamente
-
-2. **Criar Novo Preset**:
-   - Usuário ajusta geometries, cores, opacidades manualmente
-   - Clica em "Salvar Preset Atual"
-   - Nomeeia como "Meu Estilo Corporativo"
-   - Preset é salvo no localStorage
-
-3. **Reutilizar Preset**:
-   - Carrega novo SVG
-   - Clica em "Carregar Preset"
-   - Seleciona "Meu Estilo Corporativo"
-   - Todas as configs são aplicadas ao novo logo
-
-## 5. Presets Padrão Detalhados
-
-### "Minimalista"
-- boundingRects: ✓ (vermelho, 0.6 opacidade)
-- centerLines: ✓ (laranja, 0.5 opacidade)
-- Todos outros: ✗
-
-### "Proporções Áureas"
-- goldenRatio: ✓
-- goldenSpiral: ✓
-- thirdLines: ✓
-- typographicProportions: ✓
-- Todos outros: ✗
-
-### "Análise Completa"
-- Todos geometry types: ✓
-
-### "Construção Técnica"
-- bezierHandles: ✓
-- isometricGrid: ✓
-- centerLines: ✓
-- boundingRects: ✓
-- Todos outros: ✗
-
-## 6. Arquivos a Serem Criados/Modificados
-
-| Arquivo | Tipo | Descrição |
-|---------|------|-----------|
-| `src/lib/preset-engine.ts` | Novo | Engine de presets com localStorage |
-| `src/components/PresetManager.tsx` | Novo | Painel de gerenciamento de presets |
-| `src/components/SavePresetDialog.tsx` | Novo | Dialog para salvar presets |
-| `src/components/LoadPresetDialog.tsx` | Novo | Dialog para carregar/deletar |
-| `src/pages/Index.tsx` | Modificado | Integrar presets na UI |
-
-## 7. Detalhes de Implementação
-
-### localStorage Structure
-```json
-{
-  "presets": [
-    {
-      "id": "preset-1738123456789",
-      "name": "Minimalista",
-      "description": "Apenas bounding rects e center lines",
-      "isBuiltin": true,
-      "geometryOptions": {...},
-      "geometryStyles": {...},
-      "clearspaceValue": 1,
-      "clearspaceUnit": "logomark",
-      "showGrid": false,
-      "gridSubdivisions": 8,
-      "createdAt": 1738123456789
-    }
-  ]
-}
-```
-
-### Comportamento de Modificação
-- Quando usuário muda qualquer configuração, mostrar indicador de "Modificado"
-- Opção de "Reverter para Preset" para descartar mudanças
-
-## 8. Benefícios
-✓ Reutilização rápida de configurações padrão
-✓ Consistência em análises de múltiplas marcas
-✓ Presets built-in guiam novos usuários
-✓ Persistência sem backend (localStorage)
-✓ Fluxo intuitivo e amigável
