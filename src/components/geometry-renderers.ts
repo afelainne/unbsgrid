@@ -973,3 +973,187 @@ export function renderContrastGuide(
   label.fontWeight = 'bold';
   label.justification = 'center';
 }
+
+// ===================== BATCH 2 NEW TOOLS =====================
+
+export function renderDynamicBaseline(
+  bounds: paper.Rectangle,
+  style: StyleConfig
+) {
+  const color = hexToColor(style.color, style.opacity);
+  const labelColor = hexToColor(style.color, style.opacity * 0.7);
+
+  // Baseline grid: 8 evenly spaced horizontal lines based on bounds height
+  const lineCount = 12;
+  const step = bounds.height / lineCount;
+
+  for (let i = 0; i <= lineCount; i++) {
+    const y = bounds.top + step * i;
+    const line = new paper.Path.Line(
+      new paper.Point(bounds.left - 20, y),
+      new paper.Point(bounds.right + 20, y)
+    );
+    line.strokeColor = color;
+    line.strokeWidth = i % 4 === 0 ? style.strokeWidth : style.strokeWidth * 0.4;
+    line.dashArray = i % 4 === 0 ? [] : [2, 4];
+
+    if (i % 4 === 0 && i > 0 && i < lineCount) {
+      const label = new paper.PointText(new paper.Point(bounds.right + 25, y + 3));
+      label.content = `${Math.round(step * i)}`;
+      label.fillColor = labelColor;
+      label.fontSize = 7;
+    }
+  }
+
+  // Label
+  const title = new paper.PointText(new paper.Point(bounds.left - 25, bounds.top - 6));
+  title.content = 'BASELINE';
+  title.fillColor = labelColor;
+  title.fontSize = 7;
+  title.fontWeight = 'bold';
+  title.justification = 'right';
+}
+
+export function renderFibonacciOverlay(
+  bounds: paper.Rectangle,
+  style: StyleConfig
+) {
+  const color = hexToColor(style.color, style.opacity);
+  const labelColor = hexToColor(style.color, style.opacity * 0.7);
+
+  const fibs = [1, 1, 2, 3, 5, 8, 13, 21];
+  const total = fibs.reduce((a, b) => a + b, 0);
+  const unitW = bounds.width / total;
+
+  let x = bounds.left;
+  fibs.forEach((fib, i) => {
+    const w = fib * unitW;
+    const h = w; // square-ish fibonacci rects
+    const y = bounds.center.y - h / 2;
+
+    const rect = new paper.Path.Rectangle(
+      new paper.Point(x, y),
+      new paper.Point(x + w, y + h)
+    );
+    rect.strokeColor = hexToColor(style.color, style.opacity * (0.3 + i * 0.08));
+    rect.strokeWidth = style.strokeWidth;
+    rect.fillColor = hexToColor(style.color, style.opacity * 0.03);
+
+    if (w > 12) {
+      const label = new paper.PointText(new paper.Point(x + w / 2, y + h / 2 + 3));
+      label.content = String(fib);
+      label.fillColor = labelColor;
+      label.fontSize = Math.min(9, w * 0.4);
+      label.justification = 'center';
+    }
+
+    x += w;
+  });
+}
+
+export function renderKenBurnsSafe(
+  bounds: paper.Rectangle,
+  style: StyleConfig
+) {
+  const color = hexToColor(style.color, style.opacity);
+  const fillColor = hexToColor(style.color, style.opacity * 0.05);
+  const labelColor = hexToColor(style.color, style.opacity * 0.7);
+
+  const margin = 0.1; // 10% broadcast safe
+  const insetX = bounds.width * margin;
+  const insetY = bounds.height * margin;
+
+  const safeRect = new paper.Path.Rectangle(
+    new paper.Point(bounds.left + insetX, bounds.top + insetY),
+    new paper.Point(bounds.right - insetX, bounds.bottom - insetY)
+  );
+  safeRect.strokeColor = color;
+  safeRect.strokeWidth = style.strokeWidth * 1.5;
+  safeRect.fillColor = null;
+  safeRect.dashArray = [10, 4, 2, 4];
+
+  // Corner markers
+  const markerLen = Math.min(insetX, insetY) * 0.7;
+  const corners = [
+    { x: bounds.left + insetX, y: bounds.top + insetY, dx: 1, dy: 1 },
+    { x: bounds.right - insetX, y: bounds.top + insetY, dx: -1, dy: 1 },
+    { x: bounds.left + insetX, y: bounds.bottom - insetY, dx: 1, dy: -1 },
+    { x: bounds.right - insetX, y: bounds.bottom - insetY, dx: -1, dy: -1 },
+  ];
+  corners.forEach(c => {
+    const h = new paper.Path.Line(
+      new paper.Point(c.x, c.y),
+      new paper.Point(c.x + markerLen * c.dx, c.y)
+    );
+    h.strokeColor = color; h.strokeWidth = style.strokeWidth * 2;
+    const v = new paper.Path.Line(
+      new paper.Point(c.x, c.y),
+      new paper.Point(c.x, c.y + markerLen * c.dy)
+    );
+    v.strokeColor = color; v.strokeWidth = style.strokeWidth * 2;
+  });
+
+  // Label
+  const label = new paper.PointText(new paper.Point(bounds.center.x, bounds.top + insetY - 6));
+  label.content = 'BROADCAST SAFE';
+  label.fillColor = labelColor;
+  label.fontSize = 8;
+  label.fontWeight = 'bold';
+  label.justification = 'center';
+}
+
+export function renderComponentRatioLabels(
+  bounds: paper.Rectangle,
+  scaledCompBounds: paper.Rectangle[],
+  style: StyleConfig
+) {
+  const labelColor = hexToColor(style.color, style.opacity);
+
+  // Helper to find closest standard ratio
+  const findRatio = (w: number, h: number): string => {
+    const ratio = w / h;
+    const standards = [
+      { name: '1:1', value: 1 },
+      { name: '4:3', value: 4/3 },
+      { name: '3:2', value: 3/2 },
+      { name: '16:9', value: 16/9 },
+      { name: '√2', value: Math.SQRT2 },
+      { name: 'φ', value: (1 + Math.sqrt(5)) / 2 },
+      { name: '2:1', value: 2 },
+    ];
+    let closest = standards[0];
+    let minDiff = Infinity;
+    standards.forEach(s => {
+      const diff = Math.abs(ratio - s.value);
+      if (diff < minDiff) { minDiff = diff; closest = s; }
+    });
+    return minDiff < 0.1 ? closest.name : `${ratio.toFixed(2)}:1`;
+  };
+
+  scaledCompBounds.forEach(cb => {
+    const ratioText = findRatio(cb.width, cb.height);
+    const dimText = `${Math.round(cb.width)}×${Math.round(cb.height)}`;
+
+    // Ratio label above component
+    const ratioLabel = new paper.PointText(new paper.Point(cb.center.x, cb.top - 8));
+    ratioLabel.content = ratioText;
+    ratioLabel.fillColor = labelColor;
+    ratioLabel.fontSize = 10;
+    ratioLabel.fontWeight = 'bold';
+    ratioLabel.justification = 'center';
+
+    // Dimensions below
+    const dimLabel = new paper.PointText(new paper.Point(cb.center.x, cb.bottom + 14));
+    dimLabel.content = dimText;
+    dimLabel.fillColor = hexToColor(style.color, style.opacity * 0.6);
+    dimLabel.fontSize = 8;
+    dimLabel.justification = 'center';
+  });
+
+  // Full bounds ratio
+  const fullRatio = findRatio(bounds.width, bounds.height);
+  const fullLabel = new paper.PointText(new paper.Point(bounds.right + 8, bounds.top + 12));
+  fullLabel.content = `Full: ${fullRatio}`;
+  fullLabel.fillColor = hexToColor(style.color, style.opacity * 0.5);
+  fullLabel.fontSize = 8;
+}

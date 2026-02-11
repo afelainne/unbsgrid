@@ -10,7 +10,7 @@ const InfoTooltip: React.FC<InfoTooltipProps> = ({ content }) => {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button className="inline-flex items-center justify-center text-primary hover:text-primary/80 transition-colors">
+        <button className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
           <Info className="h-3.5 w-3.5" />
         </button>
       </TooltipTrigger>

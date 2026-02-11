@@ -10,6 +10,7 @@ import {
   renderSymmetryAxes, renderAngleMeasurements, renderSpacingGuides,
   renderRootRectangles, renderModularScale, renderAlignmentGuides, renderSafeZone,
   renderPixelGrid, renderOpticalCenter, renderContrastGuide,
+  renderDynamicBaseline, renderFibonacciOverlay, renderKenBurnsSafe, renderComponentRatioLabels,
 } from '@/components/geometry-renderers';
 import { Button } from '@/components/ui/button';
 
@@ -97,8 +98,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     // Clearspace
     if (clearspaceValue > 0) {
       const zones = computeClearspace(bounds, clearspaceValue, clearspaceUnit, logomarkSize);
-      const csColor = new paper.Color(0.37, 0.67, 0.97, 0.12);
-      const borderColor = new paper.Color(0.37, 0.67, 0.97, 0.5);
+      const csColor = new paper.Color(0.37, 0.67, 0.97, 0.08);
+      const borderColor = new paper.Color(0.37, 0.67, 0.97, 0.4);
 
       const rects = [
         [bounds.left - zones.left, bounds.top - zones.top, bounds.right + zones.right, bounds.top],
@@ -108,12 +109,22 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       ];
       rects.forEach(([x1, y1, x2, y2]) => {
         const r = new paper.Path.Rectangle(new paper.Point(x1, y1), new paper.Point(x2, y2));
-        r.fillColor = csColor; r.strokeColor = borderColor; r.strokeWidth = 1;
+        r.fillColor = csColor; r.strokeColor = null;
       });
+
+      // Dashed outer border for the full clearspace zone
+      const outerRect = new paper.Path.Rectangle(
+        new paper.Point(bounds.left - zones.left, bounds.top - zones.top),
+        new paper.Point(bounds.right + zones.right, bounds.bottom + zones.bottom)
+      );
+      outerRect.strokeColor = borderColor;
+      outerRect.strokeWidth = 1;
+      outerRect.dashArray = [6, 4];
+      outerRect.fillColor = null;
 
       if (zones.top > 15) {
         const xText = new paper.PointText(new paper.Point(bounds.center.x, bounds.top - zones.top / 2 + 4));
-        xText.content = 'X'; xText.fillColor = new paper.Color(0.37, 0.67, 0.97, 0.8);
+        xText.content = 'X'; xText.fillColor = new paper.Color(0.95, 0.55, 0.2, 0.8);
         xText.fontSize = 11; xText.fontWeight = 'bold'; xText.justification = 'center';
       }
     }
@@ -164,6 +175,10 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     if (geometryOptions.pixelGrid) renderPixelGrid(bounds, s.pixelGrid, gridSubdivisions);
     if (geometryOptions.opticalCenter) renderOpticalCenter(bounds, s.opticalCenter);
     if (geometryOptions.contrastGuide) renderContrastGuide(bounds, s.contrastGuide);
+    if (geometryOptions.dynamicBaseline) renderDynamicBaseline(bounds, s.dynamicBaseline);
+    if (geometryOptions.fibonacciOverlay) renderFibonacciOverlay(bounds, s.fibonacciOverlay);
+    if (geometryOptions.kenBurnsSafe) renderKenBurnsSafe(bounds, s.kenBurnsSafe);
+    if (geometryOptions.componentRatioLabels) renderComponentRatioLabels(bounds, scaledCompBounds, s.componentRatioLabels);
 
     (paper.view as any).draw();
     onProjectReady?.(paper.project);

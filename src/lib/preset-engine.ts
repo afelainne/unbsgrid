@@ -24,6 +24,7 @@ const allOff: GeometryOptions = {
   symmetryAxes: false, angleMeasurements: false, spacingGuides: false,
   rootRectangles: false, modularScale: false, alignmentGuides: false, safeZone: false,
   pixelGrid: false, opticalCenter: false, contrastGuide: false,
+  dynamicBaseline: false, fibonacciOverlay: false, kenBurnsSafe: false, componentRatioLabels: false,
 };
 
 const defaultStyle = (color: string, opacity: number, strokeWidth: number) => ({ color, opacity, strokeWidth });
@@ -50,6 +51,10 @@ const defaultStyles: GeometryStyles = {
   pixelGrid:              defaultStyle('#999999', 0.2, 0.5),
   opticalCenter:          defaultStyle('#ff4488', 0.6, 1.5),
   contrastGuide:          defaultStyle('#ffcc00', 0.4, 1),
+  dynamicBaseline:        defaultStyle('#66aadd', 0.4, 0.8),
+  fibonacciOverlay:       defaultStyle('#e6a833', 0.45, 1),
+  kenBurnsSafe:           defaultStyle('#ff6644', 0.35, 1.2),
+  componentRatioLabels:   defaultStyle('#88bbff', 0.7, 1),
 };
 
 export function getBuiltinPresets(): GeometryPreset[] {
@@ -86,6 +91,7 @@ export function getBuiltinPresets(): GeometryPreset[] {
         symmetryAxes: true, angleMeasurements: true, spacingGuides: true,
         rootRectangles: true, modularScale: true, alignmentGuides: true, safeZone: true,
         pixelGrid: true, opticalCenter: true, contrastGuide: true,
+        dynamicBaseline: true, fibonacciOverlay: true, kenBurnsSafe: true, componentRatioLabels: true,
       },
       geometryStyles: { ...defaultStyles },
       clearspaceValue: 1, clearspaceUnit: 'logomark', showGrid: true, gridSubdivisions: 8,
