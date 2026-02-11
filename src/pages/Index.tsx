@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import paper from 'paper';
 import { Download, Grid3X3, Shield, Layers, ChevronDown, ChevronRight } from 'lucide-react';
 import SVGDropZone from '@/components/SVGDropZone';
@@ -14,6 +14,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { parseSVG, invertComponents, exportSVG, type ParsedSVG, type ClearspaceUnit } from '@/lib/svg-engine';
+import { getBuiltinPresets, loadPresetsFromStorage, savePresetsToStorage, createPreset, type GeometryPreset } from '@/lib/preset-engine';
+import PresetManager from '@/components/PresetManager';
+import SavePresetDialog from '@/components/SavePresetDialog';
+import LoadPresetDialog from '@/components/LoadPresetDialog';
 
 export interface GeometryOptions {
   boundingRects: boolean;
@@ -124,8 +128,69 @@ const Index = () => {
   });
   const [geometryStyles, setGeometryStyles] = useState<GeometryStyles>({ ...defaultStyles });
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ Basic: true, Proportions: false, Advanced: false });
+  const [presets, setPresets] = useState<GeometryPreset[]>([]);
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [loadDialogOpen, setLoadDialogOpen] = useState(false);
   const projectRef = useRef<paper.Project | null>(null);
   const hiddenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Load presets from localStorage on mount
+  useEffect(() => {
+    const userPresets = loadPresetsFromStorage();
+    setPresets([...getBuiltinPresets(), ...userPresets]);
+  }, []);
+
+  const currentConfigSnapshot = useMemo(() =>
+    JSON.stringify({ geometryOptions, geometryStyles, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions }),
+    [geometryOptions, geometryStyles, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions]
+  );
+  const isPresetModified = activePresetId !== null && savedSnapshot !== null && currentConfigSnapshot !== savedSnapshot;
+
+  const activePreset = useMemo(() => presets.find(p => p.id === activePresetId) || null, [presets, activePresetId]);
+
+  const allPresetNames = useMemo(() => presets.map(p => p.name), [presets]);
+
+  const applyPreset = useCallback((preset: GeometryPreset) => {
+    setGeometryOptions({ ...preset.geometryOptions });
+    setGeometryStyles({ ...preset.geometryStyles });
+    setClearspaceValue(preset.clearspaceValue);
+    setClearspaceUnit(preset.clearspaceUnit);
+    setShowGrid(preset.showGrid);
+    setGridSubdivisions(preset.gridSubdivisions);
+    setActivePresetId(preset.id);
+    setSavedSnapshot(JSON.stringify({
+      geometryOptions: preset.geometryOptions, geometryStyles: preset.geometryStyles,
+      clearspaceValue: preset.clearspaceValue, clearspaceUnit: preset.clearspaceUnit,
+      showGrid: preset.showGrid, gridSubdivisions: preset.gridSubdivisions,
+    }));
+  }, []);
+
+  const handleSavePreset = useCallback((name: string, description: string) => {
+    const newPreset = createPreset({
+      name, description, geometryOptions, geometryStyles,
+      clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions,
+    });
+    const updated = [...presets, newPreset];
+    setPresets(updated);
+    savePresetsToStorage(updated);
+    setActivePresetId(newPreset.id);
+    setSavedSnapshot(currentConfigSnapshot);
+    setSaveDialogOpen(false);
+  }, [presets, geometryOptions, geometryStyles, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions, currentConfigSnapshot]);
+
+  const handleDeletePreset = useCallback((id: string) => {
+    const updated = presets.filter(p => p.id !== id);
+    setPresets(updated);
+    savePresetsToStorage(updated);
+    if (activePresetId === id) { setActivePresetId(null); setSavedSnapshot(null); }
+  }, [presets, activePresetId]);
+
+  const handleRevertPreset = useCallback(() => {
+    const preset = presets.find(p => p.id === activePresetId);
+    if (preset) applyPreset(preset);
+  }, [presets, activePresetId, applyPreset]);
 
   const handleSVGLoaded = useCallback((svgString: string) => {
     if (!hiddenCanvasRef.current) {
@@ -183,6 +248,17 @@ const Index = () => {
               </p>
             )}
           </section>
+
+          <Separator className="bg-sidebar-border" />
+
+          {/* Presets */}
+          <PresetManager
+            activePreset={activePreset}
+            isModified={isPresetModified}
+            onSaveClick={() => setSaveDialogOpen(true)}
+            onLoadClick={() => setLoadDialogOpen(true)}
+            onRevert={handleRevertPreset}
+          />
 
           <Separator className="bg-sidebar-border" />
 
@@ -312,6 +388,21 @@ const Index = () => {
           onProjectReady={p => { projectRef.current = p; }}
         />
       </main>
+
+      <SavePresetDialog
+        open={saveDialogOpen}
+        onOpenChange={setSaveDialogOpen}
+        existingNames={allPresetNames}
+        onSave={handleSavePreset}
+      />
+      <LoadPresetDialog
+        open={loadDialogOpen}
+        onOpenChange={setLoadDialogOpen}
+        presets={presets}
+        activePresetId={activePresetId}
+        onLoad={applyPreset}
+        onDelete={handleDeletePreset}
+      />
     </div>
   );
 };
