@@ -43,6 +43,10 @@ export interface GeometryOptions {
   pixelGrid: boolean;
   opticalCenter: boolean;
   contrastGuide: boolean;
+  dynamicBaseline: boolean;
+  fibonacciOverlay: boolean;
+  kenBurnsSafe: boolean;
+  componentRatioLabels: boolean;
 }
 
 export interface GeometryStyle {
@@ -77,6 +81,10 @@ const defaultStyles: GeometryStyles = {
   pixelGrid:              { color: '#999999', opacity: 0.2, strokeWidth: 0.5 },
   opticalCenter:          { color: '#ff4488', opacity: 0.6, strokeWidth: 1.5 },
   contrastGuide:          { color: '#ffcc00', opacity: 0.4, strokeWidth: 1 },
+  dynamicBaseline:        { color: '#66aadd', opacity: 0.4, strokeWidth: 0.8 },
+  fibonacciOverlay:       { color: '#e6a833', opacity: 0.45, strokeWidth: 1 },
+  kenBurnsSafe:           { color: '#ff6644', opacity: 0.35, strokeWidth: 1.2 },
+  componentRatioLabels:   { color: '#88bbff', opacity: 0.7, strokeWidth: 1 },
 };
 
 const geometryLabels: Record<keyof GeometryOptions, string> = {
@@ -101,14 +109,18 @@ const geometryLabels: Record<keyof GeometryOptions, string> = {
   pixelGrid: 'Pixel Grid',
   opticalCenter: 'Optical Center',
   contrastGuide: 'Contrast Guide',
+  dynamicBaseline: 'Dynamic Baseline Grid',
+  fibonacciOverlay: 'Fibonacci Overlay',
+  kenBurnsSafe: 'Ken Burns Safe Area',
+  componentRatioLabels: 'Component Ratio Labels',
 };
 
 const geometryGroups: { label: string; keys: (keyof GeometryOptions)[] }[] = [
   { label: 'Basic', keys: ['boundingRects', 'circles', 'centerLines', 'diagonals', 'tangentLines'] },
   { label: 'Proportions', keys: ['goldenRatio', 'goldenSpiral', 'thirdLines', 'typographicProportions'] },
-  { label: 'Measurement', keys: ['symmetryAxes', 'angleMeasurements', 'spacingGuides', 'alignmentGuides'] },
-  { label: 'Harmony', keys: ['rootRectangles', 'modularScale', 'safeZone'] },
-  { label: 'Advanced', keys: ['bezierHandles', 'isometricGrid', 'pixelGrid', 'opticalCenter', 'contrastGuide'] },
+  { label: 'Measurement', keys: ['symmetryAxes', 'angleMeasurements', 'spacingGuides', 'alignmentGuides', 'dynamicBaseline', 'componentRatioLabels'] },
+  { label: 'Harmony', keys: ['rootRectangles', 'modularScale', 'safeZone', 'fibonacciOverlay'] },
+  { label: 'Advanced', keys: ['bezierHandles', 'isometricGrid', 'pixelGrid', 'opticalCenter', 'contrastGuide', 'kenBurnsSafe'] },
 ];
 
 interface StyleControlProps {
@@ -168,6 +180,7 @@ const Index = () => {
     symmetryAxes: false, angleMeasurements: false, spacingGuides: false,
     rootRectangles: false, modularScale: false, alignmentGuides: false, safeZone: false,
     pixelGrid: false, opticalCenter: false, contrastGuide: false,
+    dynamicBaseline: false, fibonacciOverlay: false, kenBurnsSafe: false, componentRatioLabels: false,
   });
   const [geometryStyles, setGeometryStyles] = useState<GeometryStyles>({ ...defaultStyles });
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ Basic: true, Proportions: false, Measurement: false, Harmony: false, Advanced: false });
@@ -313,8 +326,9 @@ const Index = () => {
           {/* SVG Color Override */}
           <section>
             <div className="flex items-center gap-1.5 mb-3">
-              <Palette className="h-3.5 w-3.5 text-primary" />
+              <Palette className="h-3.5 w-3.5 text-muted-foreground" />
               <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">SVG Color</Label>
+              <InfoTooltip content="Altere a cor de todos os caminhos do SVG importado. Útil para testar o logo em diferentes cores ou verificar como ele funciona em monocromático." />
             </div>
             <div className="space-y-3">
               <div className="flex flex-wrap gap-1.5">
@@ -376,8 +390,9 @@ const Index = () => {
           {/* Canvas Background */}
           <section>
             <div className="flex items-center gap-1.5 mb-3">
-              <Hexagon className="h-3.5 w-3.5 text-primary" />
+              <Hexagon className="h-3.5 w-3.5 text-muted-foreground" />
               <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">Canvas</Label>
+              <InfoTooltip content="Controle o fundo do canvas de visualização. Use 'Checkerboard' para simular transparência, 'Light' para fundos claros e 'Dark' para fundos escuros." />
             </div>
             <div className="space-y-3">
               <div>
@@ -401,9 +416,9 @@ const Index = () => {
           {/* Clearspace */}
           <section>
             <div className="flex items-center gap-1.5 mb-3">
-              <Shield className="h-3.5 w-3.5 text-primary" />
+              <Shield className="h-3.5 w-3.5 text-muted-foreground" />
               <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">Clearspace</Label>
-              <InfoTooltip content="Define the protection zone around your logo." />
+              <InfoTooltip content="Clearspace (zona de proteção) é a área mínima ao redor do logo onde nenhum outro elemento gráfico deve aparecer. O valor 'X' define a distância em unidades selecionadas. Quanto maior o valor, mais espaço livre ao redor." />
             </div>
             <div className="space-y-3">
               <div>
@@ -424,9 +439,9 @@ const Index = () => {
           {/* Construction Grid */}
           <section>
             <div className="flex items-center gap-1.5 mb-3">
-              <Grid3X3 className="h-3.5 w-3.5 text-primary" />
+              <Grid3X3 className="h-3.5 w-3.5 text-muted-foreground" />
               <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">Construction Grid</Label>
-              <InfoTooltip content="Generate a modular construction grid." />
+              <InfoTooltip content="Gera uma grade modular baseada nas proporções do logomark. Útil para alinhar elementos em layouts. As subdivisões controlam a densidade da grade." />
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -444,7 +459,7 @@ const Index = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
                       <Label className="text-xs text-foreground">Invert Components</Label>
-                      <InfoTooltip content="Swap icon vs. wordmark detection." />
+                      <InfoTooltip content="Troca a detecção automática de qual parte do logo é o ícone (logomark) e qual é o texto (wordmark). A grade e as proporções são calculadas com base no elemento identificado como ícone." />
                     </div>
                     <Switch checked={isInverted} onCheckedChange={handleInvert} />
                   </div>
@@ -458,9 +473,9 @@ const Index = () => {
           {/* Construction Geometry */}
           <section>
             <div className="flex items-center gap-1.5 mb-3">
-              <Layers className="h-3.5 w-3.5 text-primary" />
+              <Layers className="h-3.5 w-3.5 text-muted-foreground" />
               <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">Construction Geometry</Label>
-              <InfoTooltip content="Overlay geometric construction aids with per-layer color, opacity, and stroke controls." />
+              <InfoTooltip content="Sobreposições geométricas de construção para análise visual do logo. Cada camada pode ter cor, opacidade e espessura de traço personalizados. Ative múltiplas camadas para uma análise completa." />
             </div>
             <div className="space-y-1">
               {geometryGroups.map(group => (
@@ -481,7 +496,7 @@ const Index = () => {
                             checked={geometryOptions[key]}
                             onCheckedChange={() => toggleGeometry(key)}
                           />
-                          <span className="text-xs text-foreground group-hover:text-primary transition-colors">{geometryLabels[key]}</span>
+                          <span className="text-xs text-foreground group-hover:text-foreground transition-colors">{geometryLabels[key]}</span>
                           <span
                             className="ml-auto w-3 h-3 rounded-full border border-border"
                             style={{ backgroundColor: geometryStyles[key].color }}
