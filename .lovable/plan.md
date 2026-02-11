@@ -1,56 +1,83 @@
 
 
-# unbsgrid — Brand Grid & Construction Generator
+# Enhanced unbsgrid -- Color Controls, Opacity Sliders, and New Geometry Tools
 
-## Overview
-A professional web tool for brand designers that automates the creation of construction grids, geometric overlays, and clearspace zones from SVG logos. Adobe Dark Mode aesthetic, fully client-side processing.
-
----
-
-## 1. Design System — "Adobe Dark Mode"
-- Dark background (#303030), deep input fields (#0E0E0E), blue accents (#5EAaF7)
-- Font: **Inter** (web-safe Adobe Clean alternative) with Regular/Bold weights
-- Custom-styled dropdowns with blue checkmarks, toggle switches with smooth transitions
-- Info tooltips matching Adobe-style popups
-
-## 2. SVG Upload & Parsing
-- Drag-and-drop zone with file browser fallback
-- Parse uploaded SVG files and extract all vector paths
-- Use **paper.js** to compute accurate bounding boxes from Bezier curves (not just anchor points)
-- Display the uploaded logo centered on an artboard-style canvas
-
-## 3. Clearspace (Exclusion Zone) Generator
-- Input field to define the protection margin value
-- Unit selector dropdown with options: **Logomark**, **Pixels**, **Centimeters**, **Inches**
-  - Logomark mode: derives 'X' proportionally from the main icon's dimensions
-  - Physical units use precise conversions (1in = 72px, 1cm = 28.346px)
-- Renders four protection zones (top, bottom, left, right) as semi-transparent overlays in real-time
-
-## 4. Grid Generator
-- Generate modular construction grids overlaid on the logo
-- **Invert Components** toggle switch — swaps detection of which element is the icon vs. the wordmark
-- Grid lines rendered on a separate layer above the SVG with adjustable opacity
-
-## 5. Real-Time Preview Canvas
-- Interactive canvas (using paper.js) showing the SVG with grid and clearspace layers
-- Layers update instantly as the user adjusts settings
-- Clean zoom/pan controls for inspecting details
-
-## 6. SVG Export
-- Export button to download the final composition as a clean SVG file
-- Grid lines and clearspace guides converted to proper SVG paths
-- Preserves original logo paths alongside the generated guides
-
-## 7. UI Components
-- Custom select dropdown (Adobe-style with blue checkmarks)
-- Toggle switch with animated slide transition
-- Info popups/tooltips on hover for each feature
-- Responsive layout optimized for desktop use
+## Summary
+Expand the geometry toolset significantly with per-layer color/opacity controls, new construction types (golden spiral, isometric grid, Bezier curve visualization, typographic proportions), and slider-based line weight controls.
 
 ---
 
-## Architecture Notes
-- **No backend needed** — all SVG processing runs client-side via paper.js
-- Auth can be layered in later via Supabase when monetization is needed
-- Single-page app with all tools accessible from one workspace view
+## 1. Expanded GeometryOptions and Style State
+
+Add new geometry types and per-geometry style settings (color + opacity + stroke width) to `Index.tsx`:
+
+**New geometry types:**
+- `goldenSpiral` -- Fibonacci golden spiral overlay
+- `isometricGrid` -- 30/60-degree isometric grid lines
+- `bezierHandles` -- Show Bezier control points and handles from the SVG paths
+- `typographicProportions` -- Cap height, x-height, baseline, ascender/descender guides
+- `thirdLines` -- Rule of thirds grid
+
+**Per-geometry style config (new interface `GeometryStyle`):**
+```
+{ color: string, opacity: number, strokeWidth: number }
+```
+
+Each geometry type gets its own `GeometryStyle` with sensible defaults (unique colors per type). Controlled via collapsible sections in the sidebar.
+
+## 2. Sidebar UI Enhancements
+
+For each geometry type in the "Construction Geometry" section:
+- Checkbox to toggle on/off (existing pattern)
+- When enabled, expand to show:
+  - **Color picker** -- simple HTML color input styled to match the dark theme
+  - **Opacity slider** -- Slider component (0-100%)
+  - **Stroke width slider** -- Slider component (0.5-5px)
+- Use the existing `Slider` component from `src/components/ui/slider.tsx`
+- Group geometry types into subsections: "Basic", "Proportions", "Advanced"
+
+## 3. New Geometry Rendering in PreviewCanvas
+
+### 3a. Golden Spiral
+- Draw a logarithmic golden spiral using quarter-arc segments inside nested golden rectangles
+- Start from the logo center, scaling based on logo bounds
+
+### 3b. Isometric Grid
+- Lines at 30-degree and 150-degree angles crossing through the logo center
+- Additional parallel lines at regular intervals based on subdivisions
+
+### 3c. Bezier Handles Visualization
+- During `parseSVG`, extract actual curve segment data (control points) from paper.js paths
+- In `PreviewCanvas`, render small dots at control points and thin lines from anchor to control point
+- This directly shows the Bezier construction of the logo
+
+### 3d. Typographic Proportions
+- Horizontal guides at standard typographic positions relative to logo height:
+  - Baseline (bottom), Cap height (top), x-height (~60%), Ascender (~110%), Descender (~-20%)
+- Labels on the left side
+
+### 3e. Rule of Thirds
+- Divide bounding box into 3x3 grid with intersection markers
+
+## 4. SVG Engine Updates (`svg-engine.ts`)
+
+- Add `extractBezierHandles()` function that walks paper.js path segments and returns arrays of `{ anchor, handleIn, handleOut }` coordinates
+- Update `parseSVG` to store raw segment data in a new `segments` field on `ParsedSVG`
+
+## 5. File Changes
+
+| File | Changes |
+|------|---------|
+| `src/pages/Index.tsx` | New `GeometryStyle` interface, expanded `GeometryOptions` with 5 new types, new style state per geometry, sidebar UI with color pickers + sliders per geometry type, collapsible sub-sections |
+| `src/components/PreviewCanvas.tsx` | Accept `geometryStyles` prop, render 5 new geometry types (spiral, isometric, bezier, typographic, thirds), apply custom color/opacity/strokeWidth from styles to ALL geometry renderers |
+| `src/lib/svg-engine.ts` | Add `BezierSegmentData` interface, `extractBezierHandles()` function, update `ParsedSVG` to include segment data |
+
+## 6. Technical Details
+
+- Colors stored as hex strings, converted to `paper.Color` at render time with opacity applied
+- Sliders use the existing Radix `Slider` component
+- Color inputs use native `<input type="color">` with dark theme styling
+- Golden spiral uses successive 90-degree arcs (`paper.Path.Arc`) inside subdivided golden rectangles
+- Bezier handles extracted via `path.segments[i].handleIn` / `handleOut` from paper.js API
+- All new geometry respects the same scaled coordinate system used by existing geometry
 
