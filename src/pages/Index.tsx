@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import paper from 'paper';
-import { Download, Grid3X3, Shield, Layers, ChevronDown, ChevronRight, Ruler, Hexagon } from 'lucide-react';
+import { Download, Grid3X3, Shield, Layers, ChevronDown, ChevronRight, Ruler, Hexagon, Palette, RotateCcw } from 'lucide-react';
 import SVGDropZone from '@/components/SVGDropZone';
 import PreviewCanvas from '@/components/PreviewCanvas';
 import UnitSelector from '@/components/UnitSelector';
@@ -32,7 +32,6 @@ export interface GeometryOptions {
   bezierHandles: boolean;
   typographicProportions: boolean;
   thirdLines: boolean;
-  // New tools
   symmetryAxes: boolean;
   angleMeasurements: boolean;
   spacingGuides: boolean;
@@ -40,6 +39,10 @@ export interface GeometryOptions {
   modularScale: boolean;
   alignmentGuides: boolean;
   safeZone: boolean;
+  // New tools
+  pixelGrid: boolean;
+  opticalCenter: boolean;
+  contrastGuide: boolean;
 }
 
 export interface GeometryStyle {
@@ -64,7 +67,6 @@ const defaultStyles: GeometryStyles = {
   bezierHandles:          { color: '#ff5577', opacity: 0.6, strokeWidth: 1 },
   typographicProportions: { color: '#88ddaa', opacity: 0.5, strokeWidth: 1 },
   thirdLines:             { color: '#aa88ff', opacity: 0.4, strokeWidth: 1 },
-  // New tools
   symmetryAxes:           { color: '#ff66b2', opacity: 0.5, strokeWidth: 1 },
   angleMeasurements:      { color: '#ffaa33', opacity: 0.55, strokeWidth: 1 },
   spacingGuides:          { color: '#33ccff', opacity: 0.5, strokeWidth: 1 },
@@ -72,6 +74,9 @@ const defaultStyles: GeometryStyles = {
   modularScale:           { color: '#77ddaa', opacity: 0.4, strokeWidth: 1 },
   alignmentGuides:        { color: '#ff7744', opacity: 0.4, strokeWidth: 0.8 },
   safeZone:               { color: '#44cc88', opacity: 0.35, strokeWidth: 1.2 },
+  pixelGrid:              { color: '#999999', opacity: 0.2, strokeWidth: 0.5 },
+  opticalCenter:          { color: '#ff4488', opacity: 0.6, strokeWidth: 1.5 },
+  contrastGuide:          { color: '#ffcc00', opacity: 0.4, strokeWidth: 1 },
 };
 
 const geometryLabels: Record<keyof GeometryOptions, string> = {
@@ -86,7 +91,6 @@ const geometryLabels: Record<keyof GeometryOptions, string> = {
   bezierHandles: 'Bezier Handles',
   typographicProportions: 'Typographic Proportions',
   thirdLines: 'Rule of Thirds',
-  // New
   symmetryAxes: 'Symmetry Axes',
   angleMeasurements: 'Angle Measurements',
   spacingGuides: 'Spacing Guides',
@@ -94,6 +98,9 @@ const geometryLabels: Record<keyof GeometryOptions, string> = {
   modularScale: 'Modular Scale',
   alignmentGuides: 'Alignment Guides',
   safeZone: 'Safe Zone',
+  pixelGrid: 'Pixel Grid',
+  opticalCenter: 'Optical Center',
+  contrastGuide: 'Contrast Guide',
 };
 
 const geometryGroups: { label: string; keys: (keyof GeometryOptions)[] }[] = [
@@ -101,7 +108,7 @@ const geometryGroups: { label: string; keys: (keyof GeometryOptions)[] }[] = [
   { label: 'Proportions', keys: ['goldenRatio', 'goldenSpiral', 'thirdLines', 'typographicProportions'] },
   { label: 'Measurement', keys: ['symmetryAxes', 'angleMeasurements', 'spacingGuides', 'alignmentGuides'] },
   { label: 'Harmony', keys: ['rootRectangles', 'modularScale', 'safeZone'] },
-  { label: 'Advanced', keys: ['bezierHandles', 'isometricGrid'] },
+  { label: 'Advanced', keys: ['bezierHandles', 'isometricGrid', 'pixelGrid', 'opticalCenter', 'contrastGuide'] },
 ];
 
 interface StyleControlProps {
@@ -153,12 +160,14 @@ const Index = () => {
   const [canvasBackground, setCanvasBackground] = useState<CanvasBackground>('dark');
   const [modularScaleRatio, setModularScaleRatio] = useState(1.618);
   const [safeZoneMargin, setSafeZoneMargin] = useState(0.1);
+  const [svgColorOverride, setSvgColorOverride] = useState<string | null>(null);
   const [geometryOptions, setGeometryOptions] = useState<GeometryOptions>({
     boundingRects: false, circles: false, diagonals: false, goldenRatio: false,
     centerLines: false, tangentLines: false, goldenSpiral: false, isometricGrid: false,
     bezierHandles: false, typographicProportions: false, thirdLines: false,
     symmetryAxes: false, angleMeasurements: false, spacingGuides: false,
     rootRectangles: false, modularScale: false, alignmentGuides: false, safeZone: false,
+    pixelGrid: false, opticalCenter: false, contrastGuide: false,
   });
   const [geometryStyles, setGeometryStyles] = useState<GeometryStyles>({ ...defaultStyles });
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ Basic: true, Proportions: false, Measurement: false, Harmony: false, Advanced: false });
@@ -301,6 +310,58 @@ const Index = () => {
 
           <Separator className="bg-sidebar-border" />
 
+          {/* SVG Color Override */}
+          <section>
+            <div className="flex items-center gap-1.5 mb-3">
+              <Palette className="h-3.5 w-3.5 text-primary" />
+              <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">SVG Color</Label>
+            </div>
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { name: 'Black', color: '#000000' },
+                  { name: 'White', color: '#ffffff' },
+                  { name: 'Red', color: '#e53e3e' },
+                  { name: 'Blue', color: '#3182ce' },
+                  { name: 'Green', color: '#38a169' },
+                  { name: 'Gray', color: '#718096' },
+                ].map(preset => (
+                  <button
+                    key={preset.name}
+                    onClick={() => setSvgColorOverride(preset.color)}
+                    className={`w-7 h-7 rounded border-2 transition-all ${svgColorOverride === preset.color ? 'border-foreground scale-110' : 'border-border hover:border-foreground/50'}`}
+                    style={{ backgroundColor: preset.color }}
+                    title={preset.name}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={svgColorOverride || '#000000'}
+                  onChange={e => setSvgColorOverride(e.target.value)}
+                  className="w-8 h-8 rounded border border-border bg-transparent cursor-pointer"
+                />
+                <Input
+                  value={svgColorOverride || ''}
+                  onChange={e => {
+                    const v = e.target.value;
+                    if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setSvgColorOverride(v.length === 7 ? v : null);
+                  }}
+                  placeholder="#000000"
+                  className="h-8 bg-input border-border text-foreground text-xs font-mono flex-1"
+                />
+              </div>
+              {svgColorOverride && (
+                <Button variant="outline" size="sm" onClick={() => setSvgColorOverride(null)} className="w-full h-7 text-[10px]">
+                  <RotateCcw className="h-3 w-3 mr-1" /> Reset to Original
+                </Button>
+              )}
+            </div>
+          </section>
+
+          <Separator className="bg-sidebar-border" />
+
           {/* Presets */}
           <PresetManager
             activePreset={activePreset}
@@ -419,7 +480,6 @@ const Index = () => {
                           <Checkbox
                             checked={geometryOptions[key]}
                             onCheckedChange={() => toggleGeometry(key)}
-                            className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                           />
                           <span className="text-xs text-foreground group-hover:text-primary transition-colors">{geometryLabels[key]}</span>
                           <span
@@ -506,6 +566,7 @@ const Index = () => {
           canvasBackground={canvasBackground}
           modularScaleRatio={modularScaleRatio}
           safeZoneMargin={safeZoneMargin}
+          svgColorOverride={svgColorOverride}
           onProjectReady={p => { projectRef.current = p; }}
         />
       </main>

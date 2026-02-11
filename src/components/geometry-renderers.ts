@@ -838,3 +838,138 @@ export function renderSafeZone(
   label.fontSize = 8;
   label.fontWeight = 'bold';
 }
+
+// ===================== NEW TOOLS =====================
+
+export function renderPixelGrid(
+  bounds: paper.Rectangle,
+  style: StyleConfig,
+  subdivisions: number
+) {
+  const color = hexToColor(style.color, style.opacity);
+  const step = Math.min(bounds.width, bounds.height) / (subdivisions * 2);
+
+  for (let x = bounds.left; x <= bounds.right; x += step) {
+    const line = new paper.Path.Line(
+      new paper.Point(x, bounds.top),
+      new paper.Point(x, bounds.bottom)
+    );
+    line.strokeColor = color;
+    line.strokeWidth = style.strokeWidth * 0.3;
+  }
+  for (let y = bounds.top; y <= bounds.bottom; y += step) {
+    const line = new paper.Path.Line(
+      new paper.Point(bounds.left, y),
+      new paper.Point(bounds.right, y)
+    );
+    line.strokeColor = color;
+    line.strokeWidth = style.strokeWidth * 0.3;
+  }
+}
+
+export function renderOpticalCenter(
+  bounds: paper.Rectangle,
+  style: StyleConfig
+) {
+  const color = hexToColor(style.color, style.opacity);
+  const labelColor = hexToColor(style.color, style.opacity * 0.8);
+
+  // Optical center is ~5% above geometric center
+  const opticalY = bounds.center.y - bounds.height * 0.05;
+  const cx = bounds.center.x;
+
+  // Crosshair
+  const size = Math.min(bounds.width, bounds.height) * 0.08;
+  const hLine = new paper.Path.Line(
+    new paper.Point(cx - size, opticalY),
+    new paper.Point(cx + size, opticalY)
+  );
+  hLine.strokeColor = color;
+  hLine.strokeWidth = style.strokeWidth;
+
+  const vLine = new paper.Path.Line(
+    new paper.Point(cx, opticalY - size),
+    new paper.Point(cx, opticalY + size)
+  );
+  vLine.strokeColor = color;
+  vLine.strokeWidth = style.strokeWidth;
+
+  // Circle around optical center
+  const circle = new paper.Path.Circle(new paper.Point(cx, opticalY), size * 0.6);
+  circle.strokeColor = color;
+  circle.strokeWidth = style.strokeWidth;
+  circle.fillColor = hexToColor(style.color, style.opacity * 0.1);
+
+  // Geometric center marker (small dot for comparison)
+  const geoDot = new paper.Path.Circle(bounds.center, 3);
+  geoDot.fillColor = hexToColor(style.color, style.opacity * 0.4);
+  geoDot.strokeColor = null;
+
+  // Dashed line connecting both
+  const connector = new paper.Path.Line(bounds.center, new paper.Point(cx, opticalY));
+  connector.strokeColor = hexToColor(style.color, style.opacity * 0.3);
+  connector.strokeWidth = style.strokeWidth * 0.5;
+  connector.dashArray = [3, 3];
+
+  // Labels
+  const optLabel = new paper.PointText(new paper.Point(cx + size + 6, opticalY + 3));
+  optLabel.content = 'Optical';
+  optLabel.fillColor = labelColor;
+  optLabel.fontSize = 8;
+
+  const geoLabel = new paper.PointText(new paper.Point(cx + 8, bounds.center.y + 3));
+  geoLabel.content = 'Geometric';
+  geoLabel.fillColor = hexToColor(style.color, style.opacity * 0.4);
+  geoLabel.fontSize = 8;
+}
+
+export function renderContrastGuide(
+  bounds: paper.Rectangle,
+  style: StyleConfig
+) {
+  const color = hexToColor(style.color, style.opacity);
+
+  // Draw contrast zones: highlight edges of the logo bounding box
+  const inset = Math.min(bounds.width, bounds.height) * 0.15;
+
+  // Corner brackets
+  const bracketSize = inset * 0.6;
+  const corners = [
+    { x: bounds.left, y: bounds.top, dx: 1, dy: 1 },
+    { x: bounds.right, y: bounds.top, dx: -1, dy: 1 },
+    { x: bounds.left, y: bounds.bottom, dx: 1, dy: -1 },
+    { x: bounds.right, y: bounds.bottom, dx: -1, dy: -1 },
+  ];
+
+  corners.forEach(c => {
+    const h = new paper.Path.Line(
+      new paper.Point(c.x, c.y),
+      new paper.Point(c.x + bracketSize * c.dx, c.y)
+    );
+    h.strokeColor = color;
+    h.strokeWidth = style.strokeWidth * 1.5;
+
+    const v = new paper.Path.Line(
+      new paper.Point(c.x, c.y),
+      new paper.Point(c.x, c.y + bracketSize * c.dy)
+    );
+    v.strokeColor = color;
+    v.strokeWidth = style.strokeWidth * 1.5;
+  });
+
+  // Center contrast zone circle
+  const radius = Math.min(bounds.width, bounds.height) * 0.35;
+  const zone = new paper.Path.Circle(bounds.center, radius);
+  zone.strokeColor = hexToColor(style.color, style.opacity * 0.5);
+  zone.strokeWidth = style.strokeWidth;
+  zone.fillColor = hexToColor(style.color, style.opacity * 0.04);
+  zone.dashArray = [6, 4];
+
+  // Label
+  const label = new paper.PointText(new paper.Point(bounds.center.x, bounds.center.y + radius + 14));
+  label.content = 'HIGH CONTRAST ZONE';
+  label.fillColor = hexToColor(style.color, style.opacity * 0.6);
+  label.fontSize = 8;
+  label.fontWeight = 'bold';
+  label.justification = 'center';
+}
