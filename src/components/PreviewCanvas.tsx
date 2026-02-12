@@ -162,35 +162,35 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     if (geometryOptions.circles) renderCircles(scaledCompBounds, s.circles, renderContext);
     if (geometryOptions.centerLines) renderCenterLines(bounds, scaledCompBounds, s.centerLines, renderContext);
     if (geometryOptions.diagonals) renderDiagonals(bounds, scaledCompBounds, s.diagonals, renderContext);
-    if (geometryOptions.goldenRatio) renderGoldenRatio(bounds, s.goldenRatio);
+    if (geometryOptions.goldenRatio) renderGoldenRatio(bounds, s.goldenRatio, renderContext);
     if (geometryOptions.tangentLines) renderTangentLines(bounds, scaledCompBounds, s.tangentLines, renderContext);
-    if (geometryOptions.goldenSpiral) renderGoldenSpiral(bounds, s.goldenSpiral);
-    if (geometryOptions.isometricGrid) renderIsometricGrid(bounds, s.isometricGrid, gridSubdivisions);
+    if (geometryOptions.goldenSpiral) renderGoldenSpiral(bounds, s.goldenSpiral, renderContext);
+    if (geometryOptions.isometricGrid) renderIsometricGrid(bounds, s.isometricGrid, gridSubdivisions, renderContext);
     if (geometryOptions.bezierHandles && parsedSVG.segments.length > 0) {
       renderBezierHandles(parsedSVG.segments, parsedSVG.fullBounds, bounds, s.bezierHandles);
     }
-    if (geometryOptions.typographicProportions) renderTypographicProportions(bounds, s.typographicProportions);
-    if (geometryOptions.thirdLines) renderThirdLines(bounds, s.thirdLines);
+    if (geometryOptions.typographicProportions) renderTypographicProportions(bounds, s.typographicProportions, renderContext);
+    if (geometryOptions.thirdLines) renderThirdLines(bounds, s.thirdLines, renderContext);
     // New renderers
-    if (geometryOptions.symmetryAxes) renderSymmetryAxes(bounds, scaledCompBounds, s.symmetryAxes);
-    if (geometryOptions.angleMeasurements) renderAngleMeasurements(bounds, scaledCompBounds, s.angleMeasurements);
+    if (geometryOptions.symmetryAxes) renderSymmetryAxes(bounds, scaledCompBounds, s.symmetryAxes, renderContext);
+    if (geometryOptions.angleMeasurements) renderAngleMeasurements(bounds, scaledCompBounds, s.angleMeasurements, renderContext);
     if (geometryOptions.spacingGuides) renderSpacingGuides(bounds, scaledCompBounds, s.spacingGuides);
-    if (geometryOptions.rootRectangles) renderRootRectangles(bounds, s.rootRectangles);
-    if (geometryOptions.modularScale) renderModularScale(bounds, s.modularScale, modularScaleRatio);
-    if (geometryOptions.alignmentGuides) renderAlignmentGuides(bounds, scaledCompBounds, s.alignmentGuides);
-    if (geometryOptions.safeZone) renderSafeZone(bounds, s.safeZone, safeZoneMargin);
-    if (geometryOptions.pixelGrid) renderPixelGrid(bounds, s.pixelGrid, gridSubdivisions);
-    if (geometryOptions.opticalCenter) renderOpticalCenter(bounds, s.opticalCenter);
-    if (geometryOptions.contrastGuide) renderContrastGuide(bounds, s.contrastGuide);
-    if (geometryOptions.dynamicBaseline) renderDynamicBaseline(bounds, s.dynamicBaseline);
-    if (geometryOptions.fibonacciOverlay) renderFibonacciOverlay(bounds, s.fibonacciOverlay);
-    if (geometryOptions.kenBurnsSafe) renderKenBurnsSafe(bounds, s.kenBurnsSafe);
+    if (geometryOptions.rootRectangles) renderRootRectangles(bounds, s.rootRectangles, renderContext);
+    if (geometryOptions.modularScale) renderModularScale(bounds, s.modularScale, modularScaleRatio, renderContext);
+    if (geometryOptions.alignmentGuides) renderAlignmentGuides(bounds, scaledCompBounds, s.alignmentGuides, renderContext);
+    if (geometryOptions.safeZone) renderSafeZone(bounds, s.safeZone, safeZoneMargin, renderContext);
+    if (geometryOptions.pixelGrid) renderPixelGrid(bounds, s.pixelGrid, gridSubdivisions, renderContext);
+    if (geometryOptions.opticalCenter) renderOpticalCenter(bounds, s.opticalCenter, renderContext);
+    if (geometryOptions.contrastGuide) renderContrastGuide(bounds, s.contrastGuide, renderContext);
+    if (geometryOptions.dynamicBaseline) renderDynamicBaseline(bounds, s.dynamicBaseline, renderContext);
+    if (geometryOptions.fibonacciOverlay) renderFibonacciOverlay(bounds, s.fibonacciOverlay, renderContext);
+    if (geometryOptions.kenBurnsSafe) renderKenBurnsSafe(bounds, s.kenBurnsSafe, renderContext);
     if (geometryOptions.componentRatioLabels) renderComponentRatioLabels(bounds, scaledCompBounds, s.componentRatioLabels);
-    if (geometryOptions.vesicaPiscis) renderVesicaPiscis(bounds, s.vesicaPiscis);
-    if (geometryOptions.ruleOfOdds) renderRuleOfOdds(bounds, s.ruleOfOdds);
-    if (geometryOptions.visualWeightMap) renderVisualWeightMap(bounds, scaledCompBounds, s.visualWeightMap);
-    if (geometryOptions.anchoringPoints) renderAnchoringPoints(bounds, s.anchoringPoints);
-    if (geometryOptions.harmonicDivisions) renderHarmonicDivisions(bounds, s.harmonicDivisions);
+    if (geometryOptions.vesicaPiscis) renderVesicaPiscis(bounds, s.vesicaPiscis, renderContext);
+    if (geometryOptions.ruleOfOdds) renderRuleOfOdds(bounds, s.ruleOfOdds, renderContext);
+    if (geometryOptions.visualWeightMap) renderVisualWeightMap(bounds, scaledCompBounds, s.visualWeightMap, renderContext);
+    if (geometryOptions.anchoringPoints) renderAnchoringPoints(bounds, s.anchoringPoints, renderContext);
+    if (geometryOptions.harmonicDivisions) renderHarmonicDivisions(bounds, s.harmonicDivisions, renderContext);
 
     (paper.view as any).draw();
     onProjectReady?.(paper.project);

@@ -21,6 +21,31 @@ interface RenderContext {
   useRealData?: boolean;
 }
 
+/** Check if a Paper.js item intersects with any actual SVG path */
+function intersectsAnyPath(item: paper.PathItem, paths: paper.Path[]): boolean {
+  for (const path of paths) {
+    if (item.getIntersections(path).length > 0) return true;
+  }
+  return false;
+}
+
+/** Conditionally show or remove an item based on real-data intersection */
+function showIfIntersects(
+  item: paper.PathItem,
+  context: RenderContext | undefined,
+  applyStyle: () => void
+): void {
+  if (context?.useRealData && context?.actualPaths) {
+    if (intersectsAnyPath(item, context.actualPaths)) {
+      applyStyle();
+    } else {
+      item.remove();
+    }
+  } else {
+    applyStyle();
+  }
+}
+
 export function renderBoundingRects(
   bounds: paper.Rectangle,
   scaledCompBounds: paper.Rectangle[],
@@ -314,7 +339,8 @@ export function renderDiagonals(
 
 export function renderGoldenRatio(
   bounds: paper.Rectangle,
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const dimColor = hexToColor(style.color, style.opacity * 0.5);
@@ -328,17 +354,19 @@ export function renderGoldenRatio(
   fibSequence.forEach(fib => {
     const r = (fib / maxFib) * baseRadius;
     const circle = new paper.Path.Circle(new paper.Point(cx, cy), r);
-    circle.strokeColor = color;
-    circle.strokeWidth = style.strokeWidth;
-    circle.fillColor = null;
+    showIfIntersects(circle, context, () => {
+      circle.strokeColor = color;
+      circle.strokeWidth = style.strokeWidth;
+      circle.fillColor = null;
 
-    if (r > 12) {
-      const label = new paper.PointText(new paper.Point(cx + r + 4, cy - 2));
-      label.content = String(fib);
-      label.fillColor = hexToColor(style.color, style.opacity * 0.8);
-      label.fontSize = 9;
-      label.fontWeight = 'bold';
-    }
+      if (r > 12) {
+        const label = new paper.PointText(new paper.Point(cx + r + 4, cy - 2));
+        label.content = String(fib);
+        label.fillColor = hexToColor(style.color, style.opacity * 0.8);
+        label.fontSize = 9;
+        label.fontWeight = 'bold';
+      }
+    });
   });
 
   const grWidth = bounds.width;
@@ -347,10 +375,12 @@ export function renderGoldenRatio(
     new paper.Point(cx - grWidth / 2, cy - grHeight / 2),
     new paper.Point(cx + grWidth / 2, cy + grHeight / 2)
   );
-  grRect.strokeColor = dimColor;
-  grRect.strokeWidth = style.strokeWidth;
-  grRect.fillColor = null;
-  grRect.dashArray = [6, 4];
+  showIfIntersects(grRect, context, () => {
+    grRect.strokeColor = dimColor;
+    grRect.strokeWidth = style.strokeWidth;
+    grRect.fillColor = null;
+    grRect.dashArray = [6, 4];
+  });
 }
 
 export function renderTangentLines(
@@ -416,10 +446,11 @@ export function renderTangentLines(
 
 export function renderGoldenSpiral(
   bounds: paper.Rectangle,
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
-  
+
   // Draw golden spiral using successive quarter arcs in nested golden rectangles
   let w = bounds.width;
   let h = bounds.width / PHI;
@@ -428,26 +459,23 @@ export function renderGoldenSpiral(
 
   for (let i = 0; i < 10; i++) {
     const dir = i % 4;
-    let cx: number, cy: number, r: number, from: number, through: number, to: number;
-    
+    let cx: number, cy: number, r: number;
+
     if (dir === 0) {
       r = h;
       cx = x + w - h;
       cy = y + h;
-      from = -90;
-      to = 0;
-      // Draw arc
       const arc = new paper.Path.Arc(
         new paper.Point(cx + r * Math.cos((-90 * Math.PI) / 180), cy + r * Math.sin((-90 * Math.PI) / 180)),
         new paper.Point(cx + r * Math.cos((-45 * Math.PI) / 180), cy + r * Math.sin((-45 * Math.PI) / 180)),
         new paper.Point(cx + r * Math.cos((0 * Math.PI) / 180), cy + r * Math.sin((0 * Math.PI) / 180))
       );
-      arc.strokeColor = color;
-      arc.strokeWidth = style.strokeWidth;
-      arc.fillColor = null;
-      // Next rect
+      showIfIntersects(arc, context, () => {
+        arc.strokeColor = color;
+        arc.strokeWidth = style.strokeWidth;
+        arc.fillColor = null;
+      });
       const newH = w - h;
-      w = w - h + (h - newH);
       w = h;
       h = newH;
     } else if (dir === 1) {
@@ -459,9 +487,11 @@ export function renderGoldenSpiral(
         new paper.Point(cx + r * Math.cos((45 * Math.PI) / 180), cy + r * Math.sin((45 * Math.PI) / 180)),
         new paper.Point(cx + r * Math.cos((90 * Math.PI) / 180), cy + r * Math.sin((90 * Math.PI) / 180))
       );
-      arc.strokeColor = color;
-      arc.strokeWidth = style.strokeWidth;
-      arc.fillColor = null;
+      showIfIntersects(arc, context, () => {
+        arc.strokeColor = color;
+        arc.strokeWidth = style.strokeWidth;
+        arc.fillColor = null;
+      });
       const newW = h - w;
       y = y + w;
       h = w;
@@ -475,9 +505,11 @@ export function renderGoldenSpiral(
         new paper.Point(cx + r * Math.cos((135 * Math.PI) / 180), cy + r * Math.sin((135 * Math.PI) / 180)),
         new paper.Point(cx + r * Math.cos((180 * Math.PI) / 180), cy + r * Math.sin((180 * Math.PI) / 180))
       );
-      arc.strokeColor = color;
-      arc.strokeWidth = style.strokeWidth;
-      arc.fillColor = null;
+      showIfIntersects(arc, context, () => {
+        arc.strokeColor = color;
+        arc.strokeWidth = style.strokeWidth;
+        arc.fillColor = null;
+      });
       const newH = w - h;
       x = x + h;
       w = h;
@@ -491,9 +523,11 @@ export function renderGoldenSpiral(
         new paper.Point(cx + r * Math.cos((225 * Math.PI) / 180), cy + r * Math.sin((225 * Math.PI) / 180)),
         new paper.Point(cx + r * Math.cos((270 * Math.PI) / 180), cy + r * Math.sin((270 * Math.PI) / 180))
       );
-      arc.strokeColor = color;
-      arc.strokeWidth = style.strokeWidth;
-      arc.fillColor = null;
+      showIfIntersects(arc, context, () => {
+        arc.strokeColor = color;
+        arc.strokeWidth = style.strokeWidth;
+        arc.fillColor = null;
+      });
       const newW = h - w;
       y = y + h - w;
       h = w;
@@ -507,7 +541,8 @@ export function renderGoldenSpiral(
 export function renderIsometricGrid(
   bounds: paper.Rectangle,
   style: StyleConfig,
-  subdivisions: number
+  subdivisions: number,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const cx = bounds.center.x;
@@ -531,9 +566,11 @@ export function renderIsometricGrid(
         new paper.Point(cx + offsetX - dx * extent, cy + offsetY - dy * extent),
         new paper.Point(cx + offsetX + dx * extent, cy + offsetY + dy * extent)
       );
-      line.strokeColor = color;
-      line.strokeWidth = style.strokeWidth;
-      if (i !== 0) line.dashArray = [4, 4];
+      showIfIntersects(line, context, () => {
+        line.strokeColor = color;
+        line.strokeWidth = style.strokeWidth;
+        if (i !== 0) line.dashArray = [4, 4];
+      });
     }
   });
 
@@ -544,9 +581,11 @@ export function renderIsometricGrid(
       new paper.Point(x, cy - extent),
       new paper.Point(x, cy + extent)
     );
-    line.strokeColor = color;
-    line.strokeWidth = style.strokeWidth * 0.5;
-    line.dashArray = [2, 4];
+    showIfIntersects(line, context, () => {
+      line.strokeColor = color;
+      line.strokeWidth = style.strokeWidth * 0.5;
+      line.dashArray = [2, 4];
+    });
   }
 }
 
@@ -600,7 +639,8 @@ export function renderBezierHandles(
 
 export function renderTypographicProportions(
   bounds: paper.Rectangle,
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const labelColor = hexToColor(style.color, style.opacity * 0.8);
@@ -619,24 +659,30 @@ export function renderTypographicProportions(
       new paper.Point(bounds.left - 60, y),
       new paper.Point(bounds.right + 30, y)
     );
-    line.strokeColor = color;
-    line.strokeWidth = style.strokeWidth;
-    line.dashArray = [6, 3];
+    showIfIntersects(line, context, () => {
+      line.strokeColor = color;
+      line.strokeWidth = style.strokeWidth;
+      line.dashArray = [6, 3];
 
-    const label = new paper.PointText(new paper.Point(bounds.left - 65, y + 3));
-    label.content = g.name;
-    label.fillColor = labelColor;
-    label.fontSize = 8;
-    label.justification = 'right';
+      const label = new paper.PointText(new paper.Point(bounds.left - 65, y + 3));
+      label.content = g.name;
+      label.fillColor = labelColor;
+      label.fontSize = 8;
+      label.justification = 'right';
+    });
   });
 }
 
 export function renderThirdLines(
   bounds: paper.Rectangle,
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const dotColor = hexToColor(style.color, style.opacity * 0.8);
+
+  const shownVLines: number[] = [];
+  const shownHLines: number[] = [];
 
   for (let i = 1; i <= 2; i++) {
     const x = bounds.left + (bounds.width * i) / 3;
@@ -644,25 +690,30 @@ export function renderThirdLines(
       new paper.Point(x, bounds.top - 20),
       new paper.Point(x, bounds.bottom + 20)
     );
-    line.strokeColor = color;
-    line.strokeWidth = style.strokeWidth;
-    line.dashArray = [6, 4];
+    showIfIntersects(line, context, () => {
+      line.strokeColor = color;
+      line.strokeWidth = style.strokeWidth;
+      line.dashArray = [6, 4];
+      shownVLines.push(x);
+    });
 
     const y = bounds.top + (bounds.height * i) / 3;
     const hLine = new paper.Path.Line(
       new paper.Point(bounds.left - 20, y),
       new paper.Point(bounds.right + 20, y)
     );
-    hLine.strokeColor = color;
-    hLine.strokeWidth = style.strokeWidth;
-    hLine.dashArray = [6, 4];
+    showIfIntersects(hLine, context, () => {
+      hLine.strokeColor = color;
+      hLine.strokeWidth = style.strokeWidth;
+      hLine.dashArray = [6, 4];
+      shownHLines.push(y);
+    });
   }
 
-  // Intersection markers
-  for (let i = 1; i <= 2; i++) {
-    for (let j = 1; j <= 2; j++) {
-      const x = bounds.left + (bounds.width * i) / 3;
-      const y = bounds.top + (bounds.height * j) / 3;
+  // Intersection markers - only at intersections of shown lines
+  for (const x of (shownVLines.length ? shownVLines : [bounds.left + bounds.width / 3, bounds.left + (bounds.width * 2) / 3])) {
+    for (const y of (shownHLines.length ? shownHLines : [bounds.top + bounds.height / 3, bounds.top + (bounds.height * 2) / 3])) {
+      if (context?.useRealData && (!shownVLines.length || !shownHLines.length)) continue;
       const dot = new paper.Path.Circle(new paper.Point(x, y), style.strokeWidth * 2 + 1);
       dot.fillColor = dotColor;
       dot.strokeColor = null;
@@ -675,7 +726,8 @@ export function renderThirdLines(
 export function renderSymmetryAxes(
   bounds: paper.Rectangle,
   scaledCompBounds: paper.Rectangle[],
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const dimColor = hexToColor(style.color, style.opacity * 0.6);
@@ -685,17 +737,21 @@ export function renderSymmetryAxes(
     new paper.Point(bounds.center.x, bounds.top - 40),
     new paper.Point(bounds.center.x, bounds.bottom + 40)
   );
-  vAxis.strokeColor = color;
-  vAxis.strokeWidth = style.strokeWidth * 1.2;
-  vAxis.dashArray = [10, 4, 2, 4];
+  showIfIntersects(vAxis, context, () => {
+    vAxis.strokeColor = color;
+    vAxis.strokeWidth = style.strokeWidth * 1.2;
+    vAxis.dashArray = [10, 4, 2, 4];
+  });
 
   const hAxis = new paper.Path.Line(
     new paper.Point(bounds.left - 40, bounds.center.y),
     new paper.Point(bounds.right + 40, bounds.center.y)
   );
-  hAxis.strokeColor = color;
-  hAxis.strokeWidth = style.strokeWidth * 1.2;
-  hAxis.dashArray = [10, 4, 2, 4];
+  showIfIntersects(hAxis, context, () => {
+    hAxis.strokeColor = color;
+    hAxis.strokeWidth = style.strokeWidth * 1.2;
+    hAxis.dashArray = [10, 4, 2, 4];
+  });
 
   // Small diamond markers at center
   const diamond = new paper.Path.RegularPolygon(bounds.center, 4, 5);
@@ -710,24 +766,29 @@ export function renderSymmetryAxes(
       new paper.Point(cb.center.x, cb.top - 15),
       new paper.Point(cb.center.x, cb.bottom + 15)
     );
-    cv.strokeColor = dimColor;
-    cv.strokeWidth = style.strokeWidth * 0.6;
-    cv.dashArray = [6, 3, 2, 3];
+    showIfIntersects(cv, context, () => {
+      cv.strokeColor = dimColor;
+      cv.strokeWidth = style.strokeWidth * 0.6;
+      cv.dashArray = [6, 3, 2, 3];
+    });
 
     const ch = new paper.Path.Line(
       new paper.Point(cb.left - 15, cb.center.y),
       new paper.Point(cb.right + 15, cb.center.y)
     );
-    ch.strokeColor = dimColor;
-    ch.strokeWidth = style.strokeWidth * 0.6;
-    ch.dashArray = [6, 3, 2, 3];
+    showIfIntersects(ch, context, () => {
+      ch.strokeColor = dimColor;
+      ch.strokeWidth = style.strokeWidth * 0.6;
+      ch.dashArray = [6, 3, 2, 3];
+    });
   });
 }
 
 export function renderAngleMeasurements(
   bounds: paper.Rectangle,
   scaledCompBounds: paper.Rectangle[],
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const labelColor = hexToColor(style.color, style.opacity * 0.9);
@@ -736,31 +797,43 @@ export function renderAngleMeasurements(
   const diagAngle = Math.atan2(bounds.height, bounds.width) * (180 / Math.PI);
   const arcRadius = Math.min(bounds.width, bounds.height) * 0.15;
 
-  // Bottom-left corner arc
-  const arcPath = new paper.Path.Arc(
-    new paper.Point(bounds.left + arcRadius, bounds.bottom),
-    new paper.Point(
-      bounds.left + arcRadius * Math.cos(diagAngle * Math.PI / 360),
-      bounds.bottom - arcRadius * Math.sin(diagAngle * Math.PI / 360)
-    ),
-    new paper.Point(
-      bounds.left + arcRadius * Math.cos(diagAngle * Math.PI / 180),
-      bounds.bottom - arcRadius * Math.sin(diagAngle * Math.PI / 180)
-    )
+  // Bottom-left corner arc - check if the diagonal intersects paths
+  const diagonal = new paper.Path.Line(
+    new paper.Point(bounds.left, bounds.bottom),
+    new paper.Point(bounds.right, bounds.top)
   );
-  arcPath.strokeColor = color;
-  arcPath.strokeWidth = style.strokeWidth;
-  arcPath.fillColor = null;
+  let showMainAngle = true;
+  if (context?.useRealData && context?.actualPaths) {
+    showMainAngle = intersectsAnyPath(diagonal, context.actualPaths);
+  }
+  diagonal.remove();
 
-  const labelPt = new paper.Point(
-    bounds.left + arcRadius * 1.4 * Math.cos(diagAngle * Math.PI / 360),
-    bounds.bottom - arcRadius * 1.4 * Math.sin(diagAngle * Math.PI / 360)
-  );
-  const label = new paper.PointText(labelPt);
-  label.content = `${diagAngle.toFixed(1)}°`;
-  label.fillColor = labelColor;
-  label.fontSize = 9;
-  label.fontWeight = 'bold';
+  if (showMainAngle) {
+    const arcPath = new paper.Path.Arc(
+      new paper.Point(bounds.left + arcRadius, bounds.bottom),
+      new paper.Point(
+        bounds.left + arcRadius * Math.cos(diagAngle * Math.PI / 360),
+        bounds.bottom - arcRadius * Math.sin(diagAngle * Math.PI / 360)
+      ),
+      new paper.Point(
+        bounds.left + arcRadius * Math.cos(diagAngle * Math.PI / 180),
+        bounds.bottom - arcRadius * Math.sin(diagAngle * Math.PI / 180)
+      )
+    );
+    arcPath.strokeColor = color;
+    arcPath.strokeWidth = style.strokeWidth;
+    arcPath.fillColor = null;
+
+    const labelPt = new paper.Point(
+      bounds.left + arcRadius * 1.4 * Math.cos(diagAngle * Math.PI / 360),
+      bounds.bottom - arcRadius * 1.4 * Math.sin(diagAngle * Math.PI / 360)
+    );
+    const label = new paper.PointText(labelPt);
+    label.content = `${diagAngle.toFixed(1)}°`;
+    label.fillColor = labelColor;
+    label.fontSize = 9;
+    label.fontWeight = 'bold';
+  }
 
   // Per-component aspect ratio angles
   scaledCompBounds.forEach(cb => {
@@ -768,23 +841,35 @@ export function renderAngleMeasurements(
     const r = Math.min(cb.width, cb.height) * 0.2;
     if (r < 8) return;
 
-    const arc = new paper.Path.Arc(
-      new paper.Point(cb.left + r, cb.bottom),
-      new paper.Point(cb.left + r * 0.85, cb.bottom - r * 0.5),
-      new paper.Point(
-        cb.left + r * Math.cos(angle * Math.PI / 180),
-        cb.bottom - r * Math.sin(angle * Math.PI / 180)
-      )
+    const compDiag = new paper.Path.Line(
+      new paper.Point(cb.left, cb.bottom),
+      new paper.Point(cb.right, cb.top)
     );
-    arc.strokeColor = hexToColor(style.color, style.opacity * 0.6);
-    arc.strokeWidth = style.strokeWidth * 0.7;
-    arc.fillColor = null;
+    let showComp = true;
+    if (context?.useRealData && context?.actualPaths) {
+      showComp = intersectsAnyPath(compDiag, context.actualPaths);
+    }
+    compDiag.remove();
 
-    if (r > 15) {
-      const lbl = new paper.PointText(new paper.Point(cb.left + r * 1.5, cb.bottom - r * 0.3));
-      lbl.content = `${angle.toFixed(1)}°`;
-      lbl.fillColor = hexToColor(style.color, style.opacity * 0.7);
-      lbl.fontSize = 8;
+    if (showComp) {
+      const arc = new paper.Path.Arc(
+        new paper.Point(cb.left + r, cb.bottom),
+        new paper.Point(cb.left + r * 0.85, cb.bottom - r * 0.5),
+        new paper.Point(
+          cb.left + r * Math.cos(angle * Math.PI / 180),
+          cb.bottom - r * Math.sin(angle * Math.PI / 180)
+        )
+      );
+      arc.strokeColor = hexToColor(style.color, style.opacity * 0.6);
+      arc.strokeWidth = style.strokeWidth * 0.7;
+      arc.fillColor = null;
+
+      if (r > 15) {
+        const lbl = new paper.PointText(new paper.Point(cb.left + r * 1.5, cb.bottom - r * 0.3));
+        lbl.content = `${angle.toFixed(1)}°`;
+        lbl.fillColor = hexToColor(style.color, style.opacity * 0.7);
+        lbl.fontSize = 8;
+      }
     }
   });
 }
@@ -898,7 +983,8 @@ export function renderSpacingGuides(
 
 export function renderRootRectangles(
   bounds: paper.Rectangle,
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const roots = [
     { name: '√2', value: Math.SQRT2, opacity: 1.0 },
@@ -918,25 +1004,27 @@ export function renderRootRectangles(
       new paper.Point(cx - baseW / 2, cy - h / 2),
       new paper.Point(cx + baseW / 2, cy + h / 2)
     );
-    rect.strokeColor = color;
-    rect.strokeWidth = style.strokeWidth;
-    rect.fillColor = null;
-    rect.dashArray = [8, 4];
+    showIfIntersects(rect, context, () => {
+      rect.strokeColor = color;
+      rect.strokeWidth = style.strokeWidth;
+      rect.fillColor = null;
+      rect.dashArray = [8, 4];
 
-    const label = new paper.PointText(new paper.Point(cx + baseW / 2 + 6, cy - h / 2 + 10));
-    label.content = root.name;
-    label.fillColor = color;
-    label.fontSize = 9;
-    label.fontWeight = 'bold';
+      const label = new paper.PointText(new paper.Point(cx + baseW / 2 + 6, cy - h / 2 + 10));
+      label.content = root.name;
+      label.fillColor = color;
+      label.fontSize = 9;
+      label.fontWeight = 'bold';
+    });
   });
 }
 
 export function renderModularScale(
   bounds: paper.Rectangle,
   style: StyleConfig,
-  ratio: number = 1.618
+  ratio: number = 1.618,
+  context?: RenderContext
 ) {
-  const color = hexToColor(style.color, style.opacity);
   const cx = bounds.center.x;
   const cy = bounds.center.y;
   const baseRadius = Math.min(bounds.width, bounds.height) * 0.08;
@@ -946,24 +1034,28 @@ export function renderModularScale(
     if (r > Math.max(bounds.width, bounds.height) * 1.5) break;
 
     const circle = new paper.Path.Circle(new paper.Point(cx, cy), r);
-    circle.strokeColor = hexToColor(style.color, style.opacity * (1 - i * 0.1));
-    circle.strokeWidth = style.strokeWidth;
-    circle.fillColor = null;
-    circle.dashArray = i > 3 ? [4, 4] : [];
+    const circleColor = hexToColor(style.color, style.opacity * (1 - i * 0.1));
+    showIfIntersects(circle, context, () => {
+      circle.strokeColor = circleColor;
+      circle.strokeWidth = style.strokeWidth;
+      circle.fillColor = null;
+      circle.dashArray = i > 3 ? [4, 4] : [];
 
-    if (i > 0 && r > 15) {
-      const label = new paper.PointText(new paper.Point(cx + r + 5, cy - 3));
-      label.content = `×${ratio.toFixed(3)}^${i}`;
-      label.fillColor = hexToColor(style.color, style.opacity * 0.7);
-      label.fontSize = 8;
-    }
+      if (i > 0 && r > 15) {
+        const label = new paper.PointText(new paper.Point(cx + r + 5, cy - 3));
+        label.content = `×${ratio.toFixed(3)}^${i}`;
+        label.fillColor = hexToColor(style.color, style.opacity * 0.7);
+        label.fontSize = 8;
+      }
+    });
   }
 }
 
 export function renderAlignmentGuides(
   bounds: paper.Rectangle,
   scaledCompBounds: paper.Rectangle[],
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   if (scaledCompBounds.length < 2) return;
 
@@ -997,17 +1089,21 @@ export function renderAlignmentGuides(
               new paper.Point(bounds.left - 30, avgVal),
               new paper.Point(bounds.right + 30, avgVal)
             );
-            line.strokeColor = check.label.includes('center') ? color : dimColor;
-            line.strokeWidth = style.strokeWidth;
-            line.dashArray = [3, 3];
+            showIfIntersects(line, context, () => {
+              line.strokeColor = check.label.includes('center') ? color : dimColor;
+              line.strokeWidth = style.strokeWidth;
+              line.dashArray = [3, 3];
+            });
           } else {
             const line = new paper.Path.Line(
               new paper.Point(avgVal, bounds.top - 30),
               new paper.Point(avgVal, bounds.bottom + 30)
             );
-            line.strokeColor = check.label.includes('center') ? color : dimColor;
-            line.strokeWidth = style.strokeWidth;
-            line.dashArray = [3, 3];
+            showIfIntersects(line, context, () => {
+              line.strokeColor = check.label.includes('center') ? color : dimColor;
+              line.strokeWidth = style.strokeWidth;
+              line.dashArray = [3, 3];
+            });
           }
         }
       });
@@ -1018,11 +1114,11 @@ export function renderAlignmentGuides(
 export function renderSafeZone(
   bounds: paper.Rectangle,
   style: StyleConfig,
-  margin: number = 0.1
+  margin: number = 0.1,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const fillColor = hexToColor(style.color, style.opacity * 0.06);
-
   const insetX = bounds.width * margin;
   const insetY = bounds.height * margin;
 
@@ -1035,7 +1131,7 @@ export function renderSafeZone(
   safeRect.fillColor = null;
   safeRect.dashArray = [8, 4];
 
-  // Fill the outside area (4 rects)
+  // Fill the outside area (4 rects) - highlight in red if paths extend into them
   const outerRects = [
     [bounds.left, bounds.top, bounds.right, bounds.top + insetY],
     [bounds.left, bounds.bottom - insetY, bounds.right, bounds.bottom],
@@ -1044,7 +1140,12 @@ export function renderSafeZone(
   ];
   outerRects.forEach(([x1, y1, x2, y2]) => {
     const r = new paper.Path.Rectangle(new paper.Point(x1, y1), new paper.Point(x2, y2));
-    r.fillColor = fillColor;
+    if (context?.useRealData && context?.actualPaths) {
+      const hasPathOutside = intersectsAnyPath(r, context.actualPaths);
+      r.fillColor = hasPathOutside ? hexToColor('#ff4444', style.opacity * 0.12) : fillColor;
+    } else {
+      r.fillColor = fillColor;
+    }
     r.strokeColor = null;
   });
 
@@ -1061,7 +1162,8 @@ export function renderSafeZone(
 export function renderPixelGrid(
   bounds: paper.Rectangle,
   style: StyleConfig,
-  subdivisions: number
+  subdivisions: number,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const step = Math.min(bounds.width, bounds.height) / (subdivisions * 2);
@@ -1071,32 +1173,54 @@ export function renderPixelGrid(
       new paper.Point(x, bounds.top),
       new paper.Point(x, bounds.bottom)
     );
-    line.strokeColor = color;
-    line.strokeWidth = style.strokeWidth * 0.3;
+    showIfIntersects(line, context, () => {
+      line.strokeColor = color;
+      line.strokeWidth = style.strokeWidth * 0.3;
+    });
   }
   for (let y = bounds.top; y <= bounds.bottom; y += step) {
     const line = new paper.Path.Line(
       new paper.Point(bounds.left, y),
       new paper.Point(bounds.right, y)
     );
-    line.strokeColor = color;
-    line.strokeWidth = style.strokeWidth * 0.3;
+    showIfIntersects(line, context, () => {
+      line.strokeColor = color;
+      line.strokeWidth = style.strokeWidth * 0.3;
+    });
   }
 }
 
 export function renderOpticalCenter(
   bounds: paper.Rectangle,
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const labelColor = hexToColor(style.color, style.opacity * 0.8);
 
-  // Optical center is ~5% above geometric center
-  const opticalY = bounds.center.y - bounds.height * 0.05;
   const cx = bounds.center.x;
+  const size = Math.min(bounds.width, bounds.height) * 0.08;
+
+  // When using real data, compute optical center from actual path vertical distribution
+  let opticalY = bounds.center.y - bounds.height * 0.05; // default 5% above center
+  if (context?.useRealData && context?.actualPaths) {
+    // Calculate centroid of all path points to determine visual weight center
+    let totalY = 0;
+    let count = 0;
+    for (const path of context.actualPaths) {
+      if (path.segments) {
+        for (const seg of path.segments) {
+          totalY += seg.point.y;
+          count++;
+        }
+      }
+    }
+    if (count > 0) {
+      opticalY = totalY / count;
+    }
+  }
 
   // Crosshair
-  const size = Math.min(bounds.width, bounds.height) * 0.08;
   const hLine = new paper.Path.Line(
     new paper.Point(cx - size, opticalY),
     new paper.Point(cx + size, opticalY)
@@ -1130,7 +1254,7 @@ export function renderOpticalCenter(
 
   // Labels
   const optLabel = new paper.PointText(new paper.Point(cx + size + 6, opticalY + 3));
-  optLabel.content = 'Optical';
+  optLabel.content = context?.useRealData ? 'Visual Center' : 'Optical';
   optLabel.fillColor = labelColor;
   optLabel.fontSize = 8;
 
@@ -1142,7 +1266,8 @@ export function renderOpticalCenter(
 
 export function renderContrastGuide(
   bounds: paper.Rectangle,
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
 
@@ -1177,30 +1302,33 @@ export function renderContrastGuide(
   // Center contrast zone circle
   const radius = Math.min(bounds.width, bounds.height) * 0.35;
   const zone = new paper.Path.Circle(bounds.center, radius);
-  zone.strokeColor = hexToColor(style.color, style.opacity * 0.5);
-  zone.strokeWidth = style.strokeWidth;
-  zone.fillColor = hexToColor(style.color, style.opacity * 0.04);
-  zone.dashArray = [6, 4];
+  showIfIntersects(zone, context, () => {
+    zone.strokeColor = hexToColor(style.color, style.opacity * 0.5);
+    zone.strokeWidth = style.strokeWidth;
+    zone.fillColor = hexToColor(style.color, style.opacity * 0.04);
+    zone.dashArray = [6, 4];
 
-  // Label
-  const label = new paper.PointText(new paper.Point(bounds.center.x, bounds.center.y + radius + 14));
-  label.content = 'HIGH CONTRAST ZONE';
-  label.fillColor = hexToColor(style.color, style.opacity * 0.6);
-  label.fontSize = 8;
-  label.fontWeight = 'bold';
-  label.justification = 'center';
+    // Label
+    const label = new paper.PointText(new paper.Point(bounds.center.x, bounds.center.y + radius + 14));
+    label.content = 'HIGH CONTRAST ZONE';
+    label.fillColor = hexToColor(style.color, style.opacity * 0.6);
+    label.fontSize = 8;
+    label.fontWeight = 'bold';
+    label.justification = 'center';
+  });
 }
 
 // ===================== BATCH 2 NEW TOOLS =====================
 
 export function renderDynamicBaseline(
   bounds: paper.Rectangle,
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const labelColor = hexToColor(style.color, style.opacity * 0.7);
 
-  // Baseline grid: 8 evenly spaced horizontal lines based on bounds height
+  // Baseline grid: 12 evenly spaced horizontal lines based on bounds height
   const lineCount = 12;
   const step = bounds.height / lineCount;
 
@@ -1210,16 +1338,19 @@ export function renderDynamicBaseline(
       new paper.Point(bounds.left - 20, y),
       new paper.Point(bounds.right + 20, y)
     );
-    line.strokeColor = color;
-    line.strokeWidth = i % 4 === 0 ? style.strokeWidth : style.strokeWidth * 0.4;
-    line.dashArray = i % 4 === 0 ? [] : [2, 4];
+    const isMajor = i % 4 === 0;
+    showIfIntersects(line, context, () => {
+      line.strokeColor = color;
+      line.strokeWidth = isMajor ? style.strokeWidth : style.strokeWidth * 0.4;
+      line.dashArray = isMajor ? [] : [2, 4];
 
-    if (i % 4 === 0 && i > 0 && i < lineCount) {
-      const label = new paper.PointText(new paper.Point(bounds.right + 25, y + 3));
-      label.content = `${Math.round(step * i)}`;
-      label.fillColor = labelColor;
-      label.fontSize = 7;
-    }
+      if (isMajor && i > 0 && i < lineCount) {
+        const label = new paper.PointText(new paper.Point(bounds.right + 25, y + 3));
+        label.content = `${Math.round(step * i)}`;
+        label.fillColor = labelColor;
+        label.fontSize = 7;
+      }
+    });
   }
 
   // Label
@@ -1233,7 +1364,8 @@ export function renderDynamicBaseline(
 
 export function renderFibonacciOverlay(
   bounds: paper.Rectangle,
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const labelColor = hexToColor(style.color, style.opacity * 0.7);
@@ -1252,17 +1384,20 @@ export function renderFibonacciOverlay(
       new paper.Point(x, y),
       new paper.Point(x + w, y + h)
     );
-    rect.strokeColor = hexToColor(style.color, style.opacity * (0.3 + i * 0.08));
-    rect.strokeWidth = style.strokeWidth;
-    rect.fillColor = hexToColor(style.color, style.opacity * 0.03);
+    const rectColor = hexToColor(style.color, style.opacity * (0.3 + i * 0.08));
+    showIfIntersects(rect, context, () => {
+      rect.strokeColor = rectColor;
+      rect.strokeWidth = style.strokeWidth;
+      rect.fillColor = hexToColor(style.color, style.opacity * 0.03);
 
-    if (w > 12) {
-      const label = new paper.PointText(new paper.Point(x + w / 2, y + h / 2 + 3));
-      label.content = String(fib);
-      label.fillColor = labelColor;
-      label.fontSize = Math.min(9, w * 0.4);
-      label.justification = 'center';
-    }
+      if (w > 12) {
+        const label = new paper.PointText(new paper.Point(x + w / 2, y + h / 2 + 3));
+        label.content = String(fib);
+        label.fillColor = labelColor;
+        label.fontSize = Math.min(9, w * 0.4);
+        label.justification = 'center';
+      }
+    });
 
     x += w;
   });
@@ -1270,7 +1405,8 @@ export function renderFibonacciOverlay(
 
 export function renderKenBurnsSafe(
   bounds: paper.Rectangle,
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const fillColor = hexToColor(style.color, style.opacity * 0.05);
@@ -1284,10 +1420,12 @@ export function renderKenBurnsSafe(
     new paper.Point(bounds.left + insetX, bounds.top + insetY),
     new paper.Point(bounds.right - insetX, bounds.bottom - insetY)
   );
-  safeRect.strokeColor = color;
-  safeRect.strokeWidth = style.strokeWidth * 1.5;
-  safeRect.fillColor = null;
-  safeRect.dashArray = [10, 4, 2, 4];
+  showIfIntersects(safeRect, context, () => {
+    safeRect.strokeColor = color;
+    safeRect.strokeWidth = style.strokeWidth * 1.5;
+    safeRect.fillColor = null;
+    safeRect.dashArray = [10, 4, 2, 4];
+  });
 
   // Corner markers
   const markerLen = Math.min(insetX, insetY) * 0.7;
@@ -1379,7 +1517,8 @@ export function renderComponentRatioLabels(
 
 export function renderVesicaPiscis(
   bounds: paper.Rectangle,
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const fillColor = hexToColor(style.color, style.opacity * 0.06);
@@ -1391,34 +1530,42 @@ export function renderVesicaPiscis(
 
   // Left circle
   const c1 = new paper.Path.Circle(new paper.Point(cx - offset / 2, cy), r);
-  c1.strokeColor = color;
-  c1.strokeWidth = style.strokeWidth;
-  c1.fillColor = null;
+  showIfIntersects(c1, context, () => {
+    c1.strokeColor = color;
+    c1.strokeWidth = style.strokeWidth;
+    c1.fillColor = null;
+  });
 
   // Right circle
   const c2 = new paper.Path.Circle(new paper.Point(cx + offset / 2, cy), r);
-  c2.strokeColor = color;
-  c2.strokeWidth = style.strokeWidth;
-  c2.fillColor = null;
+  showIfIntersects(c2, context, () => {
+    c2.strokeColor = color;
+    c2.strokeWidth = style.strokeWidth;
+    c2.fillColor = null;
+  });
 
   // Vesica area (intersection highlight)
   const vesica = new paper.Path.Ellipse(new paper.Rectangle(
     new paper.Point(cx - offset * 0.3, cy - r * 0.85),
     new paper.Point(cx + offset * 0.3, cy + r * 0.85)
   ));
-  vesica.strokeColor = hexToColor(style.color, style.opacity * 0.7);
-  vesica.strokeWidth = style.strokeWidth * 0.8;
-  vesica.fillColor = fillColor;
-  vesica.dashArray = [4, 3];
+  showIfIntersects(vesica, context, () => {
+    vesica.strokeColor = hexToColor(style.color, style.opacity * 0.7);
+    vesica.strokeWidth = style.strokeWidth * 0.8;
+    vesica.fillColor = fillColor;
+    vesica.dashArray = [4, 3];
+  });
 
   // Center vertical axis
   const axis = new paper.Path.Line(
     new paper.Point(cx, cy - r),
     new paper.Point(cx, cy + r)
   );
-  axis.strokeColor = hexToColor(style.color, style.opacity * 0.4);
-  axis.strokeWidth = style.strokeWidth * 0.5;
-  axis.dashArray = [3, 3];
+  showIfIntersects(axis, context, () => {
+    axis.strokeColor = hexToColor(style.color, style.opacity * 0.4);
+    axis.strokeWidth = style.strokeWidth * 0.5;
+    axis.dashArray = [3, 3];
+  });
 
   const label = new paper.PointText(new paper.Point(cx, bounds.top - 8));
   label.content = 'VESICA PISCIS';
@@ -1430,7 +1577,8 @@ export function renderVesicaPiscis(
 
 export function renderRuleOfOdds(
   bounds: paper.Rectangle,
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const labelColor = hexToColor(style.color, style.opacity * 0.6);
@@ -1442,18 +1590,22 @@ export function renderRuleOfOdds(
       new paper.Point(x, bounds.top - 15),
       new paper.Point(x, bounds.bottom + 15)
     );
-    line.strokeColor = color;
-    line.strokeWidth = style.strokeWidth;
-    line.dashArray = [6, 3];
+    showIfIntersects(line, context, () => {
+      line.strokeColor = color;
+      line.strokeWidth = style.strokeWidth;
+      line.dashArray = [6, 3];
+    });
 
     const y = bounds.top + (bounds.height * i) / 5;
     const hLine = new paper.Path.Line(
       new paper.Point(bounds.left - 15, y),
       new paper.Point(bounds.right + 15, y)
     );
-    hLine.strokeColor = color;
-    hLine.strokeWidth = style.strokeWidth;
-    hLine.dashArray = [6, 3];
+    showIfIntersects(hLine, context, () => {
+      hLine.strokeColor = color;
+      hLine.strokeWidth = style.strokeWidth;
+      hLine.dashArray = [6, 3];
+    });
   }
 
   // Sevenths (dimmer)
@@ -1464,18 +1616,22 @@ export function renderRuleOfOdds(
       new paper.Point(x, bounds.top - 8),
       new paper.Point(x, bounds.bottom + 8)
     );
-    line.strokeColor = dimColor;
-    line.strokeWidth = style.strokeWidth * 0.5;
-    line.dashArray = [2, 4];
+    showIfIntersects(line, context, () => {
+      line.strokeColor = dimColor;
+      line.strokeWidth = style.strokeWidth * 0.5;
+      line.dashArray = [2, 4];
+    });
 
     const y = bounds.top + (bounds.height * i) / 7;
     const hLine = new paper.Path.Line(
       new paper.Point(bounds.left - 8, y),
       new paper.Point(bounds.right + 8, y)
     );
-    hLine.strokeColor = dimColor;
-    hLine.strokeWidth = style.strokeWidth * 0.5;
-    hLine.dashArray = [2, 4];
+    showIfIntersects(hLine, context, () => {
+      hLine.strokeColor = dimColor;
+      hLine.strokeWidth = style.strokeWidth * 0.5;
+      hLine.dashArray = [2, 4];
+    });
   }
 
   // Labels
@@ -1493,7 +1649,8 @@ export function renderRuleOfOdds(
 export function renderVisualWeightMap(
   bounds: paper.Rectangle,
   scaledCompBounds: paper.Rectangle[],
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const labelColor = hexToColor(style.color, style.opacity * 0.8);
 
@@ -1507,37 +1664,76 @@ export function renderVisualWeightMap(
     { label: 'BR', rect: new paper.Rectangle(cx, cy, bounds.width / 2, bounds.height / 2) },
   ];
 
-  // Calculate weight per quadrant based on component overlap area
-  const totalArea = scaledCompBounds.reduce((sum, cb) => sum + cb.width * cb.height, 0) || 1;
-  
-  quads.forEach(q => {
-    let overlapArea = 0;
-    scaledCompBounds.forEach(cb => {
-      const ox = Math.max(0, Math.min(cb.right, q.rect.right) - Math.max(cb.left, q.rect.left));
-      const oy = Math.max(0, Math.min(cb.bottom, q.rect.bottom) - Math.max(cb.top, q.rect.top));
-      overlapArea += ox * oy;
+  if (context?.useRealData && context?.actualPaths) {
+    // Calculate weight from actual path point density per quadrant
+    let totalPoints = 0;
+    const quadPoints = [0, 0, 0, 0];
+
+    for (const path of context.actualPaths) {
+      if (path.segments) {
+        for (const seg of path.segments) {
+          const pt = seg.point;
+          totalPoints++;
+          quads.forEach((q, qi) => {
+            if (pt.x >= q.rect.left && pt.x <= q.rect.right &&
+                pt.y >= q.rect.top && pt.y <= q.rect.bottom) {
+              quadPoints[qi]++;
+            }
+          });
+        }
+      }
+    }
+
+    quads.forEach((q, qi) => {
+      const weight = totalPoints > 0 ? Math.round((quadPoints[qi] / totalPoints) * 100) : 0;
+      const fill = hexToColor(style.color, style.opacity * (weight / 100) * 0.3);
+      const rect = new paper.Path.Rectangle(q.rect);
+      rect.fillColor = fill;
+      rect.strokeColor = hexToColor(style.color, style.opacity * 0.2);
+      rect.strokeWidth = style.strokeWidth * 0.5;
+      rect.dashArray = [4, 4];
+
+      const label = new paper.PointText(new paper.Point(q.rect.center.x, q.rect.center.y + 4));
+      label.content = `${weight}%`;
+      label.fillColor = labelColor;
+      label.fontSize = 10;
+      label.fontWeight = 'bold';
+      label.justification = 'center';
     });
-    const weight = Math.round((overlapArea / totalArea) * 100);
+  } else {
+    // Original behavior: calculate from component bounding box overlap
+    const totalArea = scaledCompBounds.reduce((sum, cb) => sum + cb.width * cb.height, 0) || 1;
 
-    const fill = hexToColor(style.color, style.opacity * (weight / 100) * 0.3);
-    const rect = new paper.Path.Rectangle(q.rect);
-    rect.fillColor = fill;
-    rect.strokeColor = hexToColor(style.color, style.opacity * 0.2);
-    rect.strokeWidth = style.strokeWidth * 0.5;
-    rect.dashArray = [4, 4];
+    quads.forEach(q => {
+      let overlapArea = 0;
+      scaledCompBounds.forEach(cb => {
+        const ox = Math.max(0, Math.min(cb.right, q.rect.right) - Math.max(cb.left, q.rect.left));
+        const oy = Math.max(0, Math.min(cb.bottom, q.rect.bottom) - Math.max(cb.top, q.rect.top));
+        overlapArea += ox * oy;
+      });
+      const weight = Math.round((overlapArea / totalArea) * 100);
 
-    const label = new paper.PointText(new paper.Point(q.rect.center.x, q.rect.center.y + 4));
-    label.content = `${weight}%`;
-    label.fillColor = labelColor;
-    label.fontSize = 10;
-    label.fontWeight = 'bold';
-    label.justification = 'center';
-  });
+      const fill = hexToColor(style.color, style.opacity * (weight / 100) * 0.3);
+      const rect = new paper.Path.Rectangle(q.rect);
+      rect.fillColor = fill;
+      rect.strokeColor = hexToColor(style.color, style.opacity * 0.2);
+      rect.strokeWidth = style.strokeWidth * 0.5;
+      rect.dashArray = [4, 4];
+
+      const label = new paper.PointText(new paper.Point(q.rect.center.x, q.rect.center.y + 4));
+      label.content = `${weight}%`;
+      label.fillColor = labelColor;
+      label.fontSize = 10;
+      label.fontWeight = 'bold';
+      label.justification = 'center';
+    });
+  }
 }
 
 export function renderAnchoringPoints(
   bounds: paper.Rectangle,
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const size = 6;
@@ -1549,6 +1745,19 @@ export function renderAnchoringPoints(
   ];
 
   points.forEach(pt => {
+    // In real data mode, only show anchoring points that are near actual paths
+    if (context?.useRealData && context?.actualPaths) {
+      let nearPath = false;
+      for (const path of context.actualPaths) {
+        const nearest = path.getNearestPoint(pt);
+        if (nearest.getDistance(pt) < Math.max(bounds.width, bounds.height) * 0.05) {
+          nearPath = true;
+          break;
+        }
+      }
+      if (!nearPath) return;
+    }
+
     // Crosshair
     const h = new paper.Path.Line(
       new paper.Point(pt.x - size, pt.y),
@@ -1573,7 +1782,8 @@ export function renderAnchoringPoints(
 
 export function renderHarmonicDivisions(
   bounds: paper.Rectangle,
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const labelColor = hexToColor(style.color, style.opacity * 0.6);
@@ -1597,9 +1807,11 @@ export function renderHarmonicDivisions(
         new paper.Point(x, bounds.top - 5 - di * 3),
         new paper.Point(x, bounds.bottom + 5 + di * 3)
       );
-      vLine.strokeColor = c;
-      vLine.strokeWidth = style.strokeWidth * (1 - di * 0.12);
-      vLine.dashArray = [3 + di, 3 + di];
+      showIfIntersects(vLine, context, () => {
+        vLine.strokeColor = c;
+        vLine.strokeWidth = style.strokeWidth * (1 - di * 0.12);
+        vLine.dashArray = [3 + di, 3 + di];
+      });
 
       // Horizontal
       const y = bounds.top + (bounds.height * i) / div.n;
@@ -1607,9 +1819,11 @@ export function renderHarmonicDivisions(
         new paper.Point(bounds.left - 5 - di * 3, y),
         new paper.Point(bounds.right + 5 + di * 3, y)
       );
-      hLine.strokeColor = c;
-      hLine.strokeWidth = style.strokeWidth * (1 - di * 0.12);
-      hLine.dashArray = [3 + di, 3 + di];
+      showIfIntersects(hLine, context, () => {
+        hLine.strokeColor = c;
+        hLine.strokeWidth = style.strokeWidth * (1 - di * 0.12);
+        hLine.dashArray = [3 + di, 3 + di];
+      });
     }
 
     // Label on right side
