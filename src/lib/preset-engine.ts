@@ -65,30 +65,173 @@ const defaultStyles: GeometryStyles = {
 
 export function getBuiltinPresets(): GeometryPreset[] {
   return [
+    // --- Quick check: what a designer turns on first ---
     {
-      id: 'builtin-minimalist',
-      name: 'Minimalista',
-      description: 'Apenas bounding rects e center lines',
+      id: 'builtin-quick-check',
+      name: 'Verificação Rápida',
+      description: 'Primeiro olhar: limites, centro e proporções básicas do logo',
       isBuiltin: true,
-      geometryOptions: { ...allOff, boundingRects: true, centerLines: true },
-      geometryStyles: { ...defaultStyles },
+      geometryOptions: { ...allOff, boundingRects: true, centerLines: true, diagonals: true, componentRatioLabels: true },
+      geometryStyles: {
+        ...defaultStyles,
+        boundingRects: defaultStyle('#d94040', 0.5, 1),
+        centerLines: defaultStyle('#e69a1a', 0.4, 0.8),
+        diagonals: defaultStyle('#b34dd6', 0.3, 0.8),
+        componentRatioLabels: defaultStyle('#88bbff', 0.6, 1),
+      },
       clearspaceValue: 1, clearspaceUnit: 'logomark', showGrid: false, gridSubdivisions: 8,
       createdAt: 0,
     },
+
+    // --- Golden proportions: the classic composition analysis ---
     {
       id: 'builtin-golden',
-      name: 'Proporções Áureas',
-      description: 'Golden ratio, spiral e rule of thirds',
+      name: 'Proporção Áurea',
+      description: 'Espiral, círculos e divisões baseadas na proporção áurea (φ 1.618)',
       isBuiltin: true,
-      geometryOptions: { ...allOff, goldenRatio: true, goldenSpiral: true, thirdLines: true, typographicProportions: true },
-      geometryStyles: { ...defaultStyles },
+      geometryOptions: { ...allOff, goldenRatio: true, goldenSpiral: true, fibonacciOverlay: true, thirdLines: true },
+      geometryStyles: {
+        ...defaultStyles,
+        goldenRatio: defaultStyle('#f2c00a', 0.5, 1),
+        goldenSpiral: defaultStyle('#ff8c42', 0.55, 1.5),
+        fibonacciOverlay: defaultStyle('#e6a833', 0.35, 0.8),
+        thirdLines: defaultStyle('#aa88ff', 0.3, 0.8),
+      },
+      clearspaceValue: 0, clearspaceUnit: 'logomark', showGrid: false, gridSubdivisions: 8,
+      createdAt: 0,
+    },
+
+    // --- Structural anatomy: how the logo is built ---
+    {
+      id: 'builtin-structural',
+      name: 'Anatomia Estrutural',
+      description: 'Curvas bezier, tangentes e construção geométrica do logo',
+      isBuiltin: true,
+      geometryOptions: { ...allOff, bezierHandles: true, tangentLines: true, circles: true, angleMeasurements: true },
+      geometryStyles: {
+        ...defaultStyles,
+        bezierHandles: defaultStyle('#ff5577', 0.6, 1),
+        tangentLines: defaultStyle('#66ccdd', 0.4, 0.5),
+        circles: defaultStyle('#33b380', 0.4, 1),
+        angleMeasurements: defaultStyle('#ffaa33', 0.5, 0.8),
+      },
+      clearspaceValue: 0, clearspaceUnit: 'logomark', showGrid: false, gridSubdivisions: 8,
+      createdAt: 0,
+    },
+
+    // --- Symmetry & alignment: balance check ---
+    {
+      id: 'builtin-balance',
+      name: 'Equilíbrio & Simetria',
+      description: 'Eixos de simetria, centro óptico e distribuição de peso visual',
+      isBuiltin: true,
+      geometryOptions: { ...allOff, symmetryAxes: true, opticalCenter: true, visualWeightMap: true, centerLines: true },
+      geometryStyles: {
+        ...defaultStyles,
+        symmetryAxes: defaultStyle('#ff66b2', 0.5, 1),
+        opticalCenter: defaultStyle('#ff4488', 0.6, 1.5),
+        visualWeightMap: defaultStyle('#cc8844', 0.35, 1),
+        centerLines: defaultStyle('#e69a1a', 0.3, 0.8),
+      },
+      clearspaceValue: 0, clearspaceUnit: 'logomark', showGrid: false, gridSubdivisions: 8,
+      createdAt: 0,
+    },
+
+    // --- Grid & spacing: pixel-perfect alignment ---
+    {
+      id: 'builtin-grid-spacing',
+      name: 'Grid & Espaçamento',
+      description: 'Grids, guias de alinhamento e espaçamento entre componentes',
+      isBuiltin: true,
+      geometryOptions: { ...allOff, isometricGrid: true, alignmentGuides: true, spacingGuides: true, anchoringPoints: true },
+      geometryStyles: {
+        ...defaultStyles,
+        isometricGrid: defaultStyle('#5eaaf7', 0.2, 0.5),
+        alignmentGuides: defaultStyle('#ff7744', 0.4, 0.8),
+        spacingGuides: defaultStyle('#33ccff', 0.45, 1),
+        anchoringPoints: defaultStyle('#44ddbb', 0.5, 1.5),
+      },
+      clearspaceValue: 1, clearspaceUnit: 'logomark', showGrid: true, gridSubdivisions: 8,
+      createdAt: 0,
+    },
+
+    // --- Typography: for logotypes and wordmarks ---
+    {
+      id: 'builtin-typography',
+      name: 'Tipografia & Baseline',
+      description: 'Proporções tipográficas, baseline, ritmo vertical e divisões harmônicas',
+      isBuiltin: true,
+      geometryOptions: { ...allOff, typographicProportions: true, dynamicBaseline: true, harmonicDivisions: true, modularScale: true },
+      geometryStyles: {
+        ...defaultStyles,
+        typographicProportions: defaultStyle('#88ddaa', 0.45, 1),
+        dynamicBaseline: defaultStyle('#66aadd', 0.4, 0.8),
+        harmonicDivisions: defaultStyle('#aa66dd', 0.35, 0.8),
+        modularScale: defaultStyle('#77ddaa', 0.3, 0.8),
+      },
+      clearspaceValue: 0, clearspaceUnit: 'logomark', showGrid: false, gridSubdivisions: 8,
+      createdAt: 0,
+    },
+
+    // --- Brand guidelines: clearspace & safe zones ---
+    {
+      id: 'builtin-brand-guidelines',
+      name: 'Manual de Marca',
+      description: 'Área de proteção, safe zone e limites para aplicação do logo',
+      isBuiltin: true,
+      geometryOptions: { ...allOff, boundingRects: true, safeZone: true, kenBurnsSafe: true, contrastGuide: true },
+      geometryStyles: {
+        ...defaultStyles,
+        boundingRects: defaultStyle('#d94040', 0.4, 1),
+        safeZone: defaultStyle('#44cc88', 0.4, 1.2),
+        kenBurnsSafe: defaultStyle('#ff6644', 0.35, 1),
+        contrastGuide: defaultStyle('#ffcc00', 0.35, 1),
+      },
+      clearspaceValue: 1.5, clearspaceUnit: 'logomark', showGrid: false, gridSubdivisions: 8,
+      createdAt: 0,
+    },
+
+    // --- Mathematical: deep geometric analysis ---
+    {
+      id: 'builtin-mathematical',
+      name: 'Geometria Avançada',
+      description: 'Retângulos raiz, vesica piscis, divisões e escala modular',
+      isBuiltin: true,
+      geometryOptions: { ...allOff, rootRectangles: true, vesicaPiscis: true, ruleOfOdds: true, modularScale: true },
+      geometryStyles: {
+        ...defaultStyles,
+        rootRectangles: defaultStyle('#cc77ff', 0.4, 1),
+        vesicaPiscis: defaultStyle('#bb77cc', 0.4, 1),
+        ruleOfOdds: defaultStyle('#77aacc', 0.35, 0.8),
+        modularScale: defaultStyle('#77ddaa', 0.35, 0.8),
+      },
+      clearspaceValue: 0, clearspaceUnit: 'logomark', showGrid: false, gridSubdivisions: 8,
+      createdAt: 0,
+    },
+
+    // --- Presentation: clean overlay for client presentations ---
+    {
+      id: 'builtin-presentation',
+      name: 'Apresentação',
+      description: 'Overlay limpo para apresentar construção geométrica ao cliente',
+      isBuiltin: true,
+      geometryOptions: { ...allOff, circles: true, goldenSpiral: true, centerLines: true, boundingRects: true },
+      geometryStyles: {
+        ...defaultStyles,
+        circles: defaultStyle('#33b380', 0.3, 0.8),
+        goldenSpiral: defaultStyle('#ff8c42', 0.35, 1.2),
+        centerLines: defaultStyle('#e69a1a', 0.25, 0.5),
+        boundingRects: defaultStyle('#d94040', 0.25, 0.8),
+      },
       clearspaceValue: 1, clearspaceUnit: 'logomark', showGrid: false, gridSubdivisions: 8,
       createdAt: 0,
     },
+
+    // --- Full audit: everything on ---
     {
-      id: 'builtin-full',
-      name: 'Análise Completa',
-      description: 'Todos os tipos de geometria ativados',
+      id: 'builtin-full-audit',
+      name: 'Auditoria Completa',
+      description: 'Todas as ferramentas ativas para análise exaustiva',
       isBuiltin: true,
       geometryOptions: {
         boundingRects: true, circles: true, diagonals: true, goldenRatio: true,
@@ -102,56 +245,6 @@ export function getBuiltinPresets(): GeometryPreset[] {
       },
       geometryStyles: { ...defaultStyles },
       clearspaceValue: 1, clearspaceUnit: 'logomark', showGrid: true, gridSubdivisions: 8,
-      createdAt: 0,
-    },
-    {
-      id: 'builtin-technical',
-      name: 'Técnica',
-      description: 'Bezier handles, isometric grid e análise estrutural',
-      isBuiltin: true,
-      geometryOptions: { ...allOff, bezierHandles: true, isometricGrid: true, centerLines: true, boundingRects: true },
-      geometryStyles: { ...defaultStyles },
-      clearspaceValue: 1, clearspaceUnit: 'logomark', showGrid: true, gridSubdivisions: 8,
-      createdAt: 0,
-    },
-    {
-      id: 'builtin-symmetry',
-      name: 'Simetria',
-      description: 'Eixos de simetria, center lines e guias de alinhamento',
-      isBuiltin: true,
-      geometryOptions: { ...allOff, symmetryAxes: true, centerLines: true, alignmentGuides: true, anchoringPoints: true },
-      geometryStyles: { ...defaultStyles },
-      clearspaceValue: 1, clearspaceUnit: 'logomark', showGrid: false, gridSubdivisions: 8,
-      createdAt: 0,
-    },
-    {
-      id: 'builtin-fibonacci',
-      name: 'Fibonacci',
-      description: 'Fibonacci overlay, golden ratio e golden spiral',
-      isBuiltin: true,
-      geometryOptions: { ...allOff, fibonacciOverlay: true, goldenRatio: true, goldenSpiral: true, vesicaPiscis: true },
-      geometryStyles: { ...defaultStyles },
-      clearspaceValue: 0, clearspaceUnit: 'logomark', showGrid: false, gridSubdivisions: 8,
-      createdAt: 0,
-    },
-    {
-      id: 'builtin-broadcast',
-      name: 'Broadcast',
-      description: 'Ken Burns safe area, safe zone e bounding rects',
-      isBuiltin: true,
-      geometryOptions: { ...allOff, kenBurnsSafe: true, safeZone: true, boundingRects: true },
-      geometryStyles: { ...defaultStyles },
-      clearspaceValue: 1, clearspaceUnit: 'logomark', showGrid: false, gridSubdivisions: 8,
-      createdAt: 0,
-    },
-    {
-      id: 'builtin-typography',
-      name: 'Tipografia',
-      description: 'Proporções tipográficas, baseline grid e spacing guides',
-      isBuiltin: true,
-      geometryOptions: { ...allOff, typographicProportions: true, dynamicBaseline: true, spacingGuides: true, harmonicDivisions: true },
-      geometryStyles: { ...defaultStyles },
-      clearspaceValue: 0, clearspaceUnit: 'logomark', showGrid: false, gridSubdivisions: 8,
       createdAt: 0,
     },
   ];
