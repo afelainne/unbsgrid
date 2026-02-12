@@ -5,6 +5,7 @@ import SVGDropZone from '@/components/SVGDropZone';
 import PreviewCanvas from '@/components/PreviewCanvas';
 import UnitSelector from '@/components/UnitSelector';
 import InfoTooltip from '@/components/InfoTooltip';
+import { Logo } from '@/components/Logo';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -320,7 +321,10 @@ const Index = () => {
     <div className="flex h-screen w-screen overflow-hidden">
       <aside className="w-[300px] min-w-[300px] bg-sidebar border-r border-sidebar-border flex flex-col">
         <div className="px-4 py-3 border-b border-sidebar-border">
-          <h1 className="text-xs font-bold tracking-wide text-foreground">UNBSGRID</h1>
+          <div className="flex items-center gap-2 mb-1">
+            <Logo />
+            <h1 className="text-xs font-bold tracking-wide text-foreground">UNBSGRID</h1>
+          </div>
           <p className="text-[9px] text-muted-foreground mt-0.5">Brand Grid & Construction Generator</p>
         </div>
 
