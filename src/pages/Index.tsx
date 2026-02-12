@@ -39,7 +39,6 @@ export interface GeometryOptions {
   modularScale: boolean;
   alignmentGuides: boolean;
   safeZone: boolean;
-  // New tools
   pixelGrid: boolean;
   opticalCenter: boolean;
   contrastGuide: boolean;
@@ -47,6 +46,12 @@ export interface GeometryOptions {
   fibonacciOverlay: boolean;
   kenBurnsSafe: boolean;
   componentRatioLabels: boolean;
+  // Batch 3
+  vesicaPiscis: boolean;
+  ruleOfOdds: boolean;
+  visualWeightMap: boolean;
+  anchoringPoints: boolean;
+  harmonicDivisions: boolean;
 }
 
 export interface GeometryStyle {
@@ -85,6 +90,11 @@ const defaultStyles: GeometryStyles = {
   fibonacciOverlay:       { color: '#e6a833', opacity: 0.45, strokeWidth: 1 },
   kenBurnsSafe:           { color: '#ff6644', opacity: 0.35, strokeWidth: 1.2 },
   componentRatioLabels:   { color: '#88bbff', opacity: 0.7, strokeWidth: 1 },
+  vesicaPiscis:           { color: '#bb77cc', opacity: 0.45, strokeWidth: 1 },
+  ruleOfOdds:             { color: '#77aacc', opacity: 0.35, strokeWidth: 0.8 },
+  visualWeightMap:        { color: '#cc8844', opacity: 0.3, strokeWidth: 1 },
+  anchoringPoints:        { color: '#44ddbb', opacity: 0.6, strokeWidth: 1.5 },
+  harmonicDivisions:      { color: '#aa66dd', opacity: 0.4, strokeWidth: 0.8 },
 };
 
 const geometryLabels: Record<keyof GeometryOptions, string> = {
@@ -113,14 +123,19 @@ const geometryLabels: Record<keyof GeometryOptions, string> = {
   fibonacciOverlay: 'Fibonacci Overlay',
   kenBurnsSafe: 'Ken Burns Safe Area',
   componentRatioLabels: 'Component Ratio Labels',
+  vesicaPiscis: 'Vesica Piscis',
+  ruleOfOdds: 'Rule of Odds (5ths & 7ths)',
+  visualWeightMap: 'Visual Weight Map',
+  anchoringPoints: 'Anchoring Points',
+  harmonicDivisions: 'Harmonic Divisions',
 };
 
 const geometryGroups: { label: string; keys: (keyof GeometryOptions)[] }[] = [
-  { label: 'Basic', keys: ['boundingRects', 'circles', 'centerLines', 'diagonals', 'tangentLines'] },
-  { label: 'Proportions', keys: ['goldenRatio', 'goldenSpiral', 'thirdLines', 'typographicProportions'] },
-  { label: 'Measurement', keys: ['symmetryAxes', 'angleMeasurements', 'spacingGuides', 'alignmentGuides', 'dynamicBaseline', 'componentRatioLabels'] },
-  { label: 'Harmony', keys: ['rootRectangles', 'modularScale', 'safeZone', 'fibonacciOverlay'] },
-  { label: 'Advanced', keys: ['bezierHandles', 'isometricGrid', 'pixelGrid', 'opticalCenter', 'contrastGuide', 'kenBurnsSafe'] },
+  { label: 'Basic', keys: ['boundingRects', 'circles', 'centerLines', 'diagonals', 'tangentLines', 'anchoringPoints'] },
+  { label: 'Proportions', keys: ['goldenRatio', 'goldenSpiral', 'thirdLines', 'typographicProportions', 'ruleOfOdds'] },
+  { label: 'Measurement', keys: ['symmetryAxes', 'angleMeasurements', 'spacingGuides', 'alignmentGuides', 'dynamicBaseline', 'componentRatioLabels', 'harmonicDivisions'] },
+  { label: 'Harmony', keys: ['rootRectangles', 'modularScale', 'safeZone', 'fibonacciOverlay', 'vesicaPiscis'] },
+  { label: 'Advanced', keys: ['bezierHandles', 'isometricGrid', 'pixelGrid', 'opticalCenter', 'contrastGuide', 'kenBurnsSafe', 'visualWeightMap'] },
 ];
 
 interface StyleControlProps {
@@ -181,6 +196,7 @@ const Index = () => {
     rootRectangles: false, modularScale: false, alignmentGuides: false, safeZone: false,
     pixelGrid: false, opticalCenter: false, contrastGuide: false,
     dynamicBaseline: false, fibonacciOverlay: false, kenBurnsSafe: false, componentRatioLabels: false,
+    vesicaPiscis: false, ruleOfOdds: false, visualWeightMap: false, anchoringPoints: false, harmonicDivisions: false,
   });
   const [geometryStyles, setGeometryStyles] = useState<GeometryStyles>({ ...defaultStyles });
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ Basic: true, Proportions: false, Measurement: false, Harmony: false, Advanced: false });
@@ -325,53 +341,62 @@ const Index = () => {
 
           {/* SVG Color Override */}
           <section>
-            <div className="flex items-center gap-1.5 mb-3">
+            <div className="flex items-center gap-1.5 mb-2">
               <Palette className="h-3.5 w-3.5 text-muted-foreground" />
               <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">SVG Color</Label>
               <InfoTooltip content="Altere a cor de todos os caminhos do SVG importado. Útil para testar o logo em diferentes cores ou verificar como ele funciona em monocromático." />
             </div>
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { name: 'Black', color: '#000000' },
-                  { name: 'White', color: '#ffffff' },
-                  { name: 'Red', color: '#e53e3e' },
-                  { name: 'Blue', color: '#3182ce' },
-                  { name: 'Green', color: '#38a169' },
-                  { name: 'Gray', color: '#718096' },
-                ].map(preset => (
-                  <button
-                    key={preset.name}
-                    onClick={() => setSvgColorOverride(preset.color)}
-                    className={`w-7 h-7 rounded border-2 transition-all ${svgColorOverride === preset.color ? 'border-foreground scale-110' : 'border-border hover:border-foreground/50'}`}
-                    style={{ backgroundColor: preset.color }}
-                    title={preset.name}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {[
+                { name: 'Black', color: '#000000' },
+                { name: 'White', color: '#ffffff' },
+                { name: 'Red', color: '#e53e3e' },
+                { name: 'Blue', color: '#3182ce' },
+                { name: 'Green', color: '#38a169' },
+                { name: 'Gray', color: '#718096' },
+                { name: 'Orange', color: '#ED8936' },
+                { name: 'Purple', color: '#805AD5' },
+                { name: 'Pink', color: '#D53F8C' },
+                { name: 'Teal', color: '#319795' },
+              ].map(preset => (
+                <button
+                  key={preset.name}
+                  onClick={() => setSvgColorOverride(preset.color)}
+                  className={`w-5 h-5 rounded-sm border transition-all ${svgColorOverride === preset.color ? 'border-foreground ring-1 ring-foreground/50 scale-110' : 'border-border/60 hover:border-foreground/40'}`}
+                  style={{ backgroundColor: preset.color }}
+                  title={preset.name}
+                />
+              ))}
+              <div className="relative w-5 h-5">
                 <input
                   type="color"
                   value={svgColorOverride || '#000000'}
                   onChange={e => setSvgColorOverride(e.target.value)}
-                  className="w-8 h-8 rounded border border-border bg-transparent cursor-pointer"
+                  className="absolute inset-0 w-5 h-5 rounded-sm border border-border/60 bg-transparent cursor-pointer opacity-0"
                 />
-                <Input
-                  value={svgColorOverride || ''}
-                  onChange={e => {
-                    const v = e.target.value;
-                    if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setSvgColorOverride(v.length === 7 ? v : null);
-                  }}
-                  placeholder="#000000"
-                  className="h-8 bg-input border-border text-foreground text-xs font-mono flex-1"
-                />
+                <div className="w-5 h-5 rounded-sm border border-dashed border-muted-foreground/50 flex items-center justify-center pointer-events-none"
+                  style={svgColorOverride && ![
+                    '#000000','#ffffff','#e53e3e','#3182ce','#38a169','#718096','#ED8936','#805AD5','#D53F8C','#319795'
+                  ].includes(svgColorOverride) ? { backgroundColor: svgColorOverride, borderStyle: 'solid' } : {}}>
+                  <span className="text-[8px] text-muted-foreground">+</span>
+                </div>
               </div>
               {svgColorOverride && (
-                <Button variant="outline" size="sm" onClick={() => setSvgColorOverride(null)} className="w-full h-7 text-[10px]">
-                  <RotateCcw className="h-3 w-3 mr-1" /> Reset to Original
-                </Button>
+                <button onClick={() => setSvgColorOverride(null)} className="text-muted-foreground hover:text-foreground transition-colors" title="Reset">
+                  <RotateCcw className="h-3 w-3" />
+                </button>
               )}
             </div>
+            {svgColorOverride && (
+              <Input
+                value={svgColorOverride}
+                onChange={e => {
+                  const v = e.target.value;
+                  if (/^#[0-9a-fA-F]{0,6}$/.test(v) && v.length === 7) setSvgColorOverride(v);
+                }}
+                className="h-6 mt-1.5 bg-input border-border text-foreground text-[10px] font-mono"
+              />
+            )}
           </section>
 
           <Separator className="bg-sidebar-border" />
@@ -383,6 +408,8 @@ const Index = () => {
             onSaveClick={() => setSaveDialogOpen(true)}
             onLoadClick={() => setLoadDialogOpen(true)}
             onRevert={handleRevertPreset}
+            builtinPresets={presets.filter(p => p.isBuiltin)}
+            onApplyPreset={applyPreset}
           />
 
           <Separator className="bg-sidebar-border" />

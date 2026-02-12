@@ -1157,3 +1157,249 @@ export function renderComponentRatioLabels(
   fullLabel.fillColor = hexToColor(style.color, style.opacity * 0.5);
   fullLabel.fontSize = 8;
 }
+
+// ===================== BATCH 3 NEW TOOLS =====================
+
+export function renderVesicaPiscis(
+  bounds: paper.Rectangle,
+  style: StyleConfig
+) {
+  const color = hexToColor(style.color, style.opacity);
+  const fillColor = hexToColor(style.color, style.opacity * 0.06);
+
+  const r = bounds.height / 2;
+  const cx = bounds.center.x;
+  const cy = bounds.center.y;
+  const offset = bounds.width / 3;
+
+  // Left circle
+  const c1 = new paper.Path.Circle(new paper.Point(cx - offset / 2, cy), r);
+  c1.strokeColor = color;
+  c1.strokeWidth = style.strokeWidth;
+  c1.fillColor = null;
+
+  // Right circle
+  const c2 = new paper.Path.Circle(new paper.Point(cx + offset / 2, cy), r);
+  c2.strokeColor = color;
+  c2.strokeWidth = style.strokeWidth;
+  c2.fillColor = null;
+
+  // Vesica area (intersection highlight)
+  const vesica = new paper.Path.Ellipse(new paper.Rectangle(
+    new paper.Point(cx - offset * 0.3, cy - r * 0.85),
+    new paper.Point(cx + offset * 0.3, cy + r * 0.85)
+  ));
+  vesica.strokeColor = hexToColor(style.color, style.opacity * 0.7);
+  vesica.strokeWidth = style.strokeWidth * 0.8;
+  vesica.fillColor = fillColor;
+  vesica.dashArray = [4, 3];
+
+  // Center vertical axis
+  const axis = new paper.Path.Line(
+    new paper.Point(cx, cy - r),
+    new paper.Point(cx, cy + r)
+  );
+  axis.strokeColor = hexToColor(style.color, style.opacity * 0.4);
+  axis.strokeWidth = style.strokeWidth * 0.5;
+  axis.dashArray = [3, 3];
+
+  const label = new paper.PointText(new paper.Point(cx, bounds.top - 8));
+  label.content = 'VESICA PISCIS';
+  label.fillColor = hexToColor(style.color, style.opacity * 0.6);
+  label.fontSize = 7;
+  label.fontWeight = 'bold';
+  label.justification = 'center';
+}
+
+export function renderRuleOfOdds(
+  bounds: paper.Rectangle,
+  style: StyleConfig
+) {
+  const color = hexToColor(style.color, style.opacity);
+  const labelColor = hexToColor(style.color, style.opacity * 0.6);
+
+  // Fifths
+  for (let i = 1; i < 5; i++) {
+    const x = bounds.left + (bounds.width * i) / 5;
+    const line = new paper.Path.Line(
+      new paper.Point(x, bounds.top - 15),
+      new paper.Point(x, bounds.bottom + 15)
+    );
+    line.strokeColor = color;
+    line.strokeWidth = style.strokeWidth;
+    line.dashArray = [6, 3];
+
+    const y = bounds.top + (bounds.height * i) / 5;
+    const hLine = new paper.Path.Line(
+      new paper.Point(bounds.left - 15, y),
+      new paper.Point(bounds.right + 15, y)
+    );
+    hLine.strokeColor = color;
+    hLine.strokeWidth = style.strokeWidth;
+    hLine.dashArray = [6, 3];
+  }
+
+  // Sevenths (dimmer)
+  const dimColor = hexToColor(style.color, style.opacity * 0.4);
+  for (let i = 1; i < 7; i++) {
+    const x = bounds.left + (bounds.width * i) / 7;
+    const line = new paper.Path.Line(
+      new paper.Point(x, bounds.top - 8),
+      new paper.Point(x, bounds.bottom + 8)
+    );
+    line.strokeColor = dimColor;
+    line.strokeWidth = style.strokeWidth * 0.5;
+    line.dashArray = [2, 4];
+
+    const y = bounds.top + (bounds.height * i) / 7;
+    const hLine = new paper.Path.Line(
+      new paper.Point(bounds.left - 8, y),
+      new paper.Point(bounds.right + 8, y)
+    );
+    hLine.strokeColor = dimColor;
+    hLine.strokeWidth = style.strokeWidth * 0.5;
+    hLine.dashArray = [2, 4];
+  }
+
+  // Labels
+  const l5 = new paper.PointText(new paper.Point(bounds.right + 18, bounds.top + bounds.height / 5 + 3));
+  l5.content = '1/5';
+  l5.fillColor = labelColor;
+  l5.fontSize = 7;
+
+  const l7 = new paper.PointText(new paper.Point(bounds.right + 18, bounds.top + bounds.height / 7 + 3));
+  l7.content = '1/7';
+  l7.fillColor = hexToColor(style.color, style.opacity * 0.35);
+  l7.fontSize = 7;
+}
+
+export function renderVisualWeightMap(
+  bounds: paper.Rectangle,
+  scaledCompBounds: paper.Rectangle[],
+  style: StyleConfig
+) {
+  const labelColor = hexToColor(style.color, style.opacity * 0.8);
+
+  // Split into 4 quadrants
+  const cx = bounds.center.x;
+  const cy = bounds.center.y;
+  const quads = [
+    { label: 'TL', rect: new paper.Rectangle(bounds.left, bounds.top, bounds.width / 2, bounds.height / 2) },
+    { label: 'TR', rect: new paper.Rectangle(cx, bounds.top, bounds.width / 2, bounds.height / 2) },
+    { label: 'BL', rect: new paper.Rectangle(bounds.left, cy, bounds.width / 2, bounds.height / 2) },
+    { label: 'BR', rect: new paper.Rectangle(cx, cy, bounds.width / 2, bounds.height / 2) },
+  ];
+
+  // Calculate weight per quadrant based on component overlap area
+  const totalArea = scaledCompBounds.reduce((sum, cb) => sum + cb.width * cb.height, 0) || 1;
+  
+  quads.forEach(q => {
+    let overlapArea = 0;
+    scaledCompBounds.forEach(cb => {
+      const ox = Math.max(0, Math.min(cb.right, q.rect.right) - Math.max(cb.left, q.rect.left));
+      const oy = Math.max(0, Math.min(cb.bottom, q.rect.bottom) - Math.max(cb.top, q.rect.top));
+      overlapArea += ox * oy;
+    });
+    const weight = Math.round((overlapArea / totalArea) * 100);
+
+    const fill = hexToColor(style.color, style.opacity * (weight / 100) * 0.3);
+    const rect = new paper.Path.Rectangle(q.rect);
+    rect.fillColor = fill;
+    rect.strokeColor = hexToColor(style.color, style.opacity * 0.2);
+    rect.strokeWidth = style.strokeWidth * 0.5;
+    rect.dashArray = [4, 4];
+
+    const label = new paper.PointText(new paper.Point(q.rect.center.x, q.rect.center.y + 4));
+    label.content = `${weight}%`;
+    label.fillColor = labelColor;
+    label.fontSize = 10;
+    label.fontWeight = 'bold';
+    label.justification = 'center';
+  });
+}
+
+export function renderAnchoringPoints(
+  bounds: paper.Rectangle,
+  style: StyleConfig
+) {
+  const color = hexToColor(style.color, style.opacity);
+  const size = 6;
+
+  const points = [
+    bounds.topLeft, new paper.Point(bounds.center.x, bounds.top), bounds.topRight,
+    new paper.Point(bounds.left, bounds.center.y), bounds.center, new paper.Point(bounds.right, bounds.center.y),
+    bounds.bottomLeft, new paper.Point(bounds.center.x, bounds.bottom), bounds.bottomRight,
+  ];
+
+  points.forEach(pt => {
+    // Crosshair
+    const h = new paper.Path.Line(
+      new paper.Point(pt.x - size, pt.y),
+      new paper.Point(pt.x + size, pt.y)
+    );
+    h.strokeColor = color;
+    h.strokeWidth = style.strokeWidth;
+
+    const v = new paper.Path.Line(
+      new paper.Point(pt.x, pt.y - size),
+      new paper.Point(pt.x, pt.y + size)
+    );
+    v.strokeColor = color;
+    v.strokeWidth = style.strokeWidth;
+
+    // Small circle
+    const dot = new paper.Path.Circle(pt, 2.5);
+    dot.fillColor = color;
+    dot.strokeColor = null;
+  });
+}
+
+export function renderHarmonicDivisions(
+  bounds: paper.Rectangle,
+  style: StyleConfig
+) {
+  const color = hexToColor(style.color, style.opacity);
+  const labelColor = hexToColor(style.color, style.opacity * 0.6);
+
+  const divisions = [
+    { n: 2, label: '1/2' },
+    { n: 3, label: '1/3' },
+    { n: 4, label: '1/4' },
+    { n: 5, label: '1/5' },
+    { n: 6, label: '1/6' },
+  ];
+
+  divisions.forEach((div, di) => {
+    const opacity = 1 - di * 0.15;
+    const c = hexToColor(style.color, style.opacity * opacity);
+
+    for (let i = 1; i < div.n; i++) {
+      // Vertical
+      const x = bounds.left + (bounds.width * i) / div.n;
+      const vLine = new paper.Path.Line(
+        new paper.Point(x, bounds.top - 5 - di * 3),
+        new paper.Point(x, bounds.bottom + 5 + di * 3)
+      );
+      vLine.strokeColor = c;
+      vLine.strokeWidth = style.strokeWidth * (1 - di * 0.12);
+      vLine.dashArray = [3 + di, 3 + di];
+
+      // Horizontal
+      const y = bounds.top + (bounds.height * i) / div.n;
+      const hLine = new paper.Path.Line(
+        new paper.Point(bounds.left - 5 - di * 3, y),
+        new paper.Point(bounds.right + 5 + di * 3, y)
+      );
+      hLine.strokeColor = c;
+      hLine.strokeWidth = style.strokeWidth * (1 - di * 0.12);
+      hLine.dashArray = [3 + di, 3 + di];
+    }
+
+    // Label on right side
+    const labelY = bounds.top + bounds.height / div.n;
+    const label = new paper.PointText(new paper.Point(bounds.right + 20 + di * 12, labelY + 3));
+    label.content = div.label;
+    label.fillColor = labelColor;
+    label.fontSize = 7;
+  });
+}
