@@ -233,6 +233,8 @@ const Index = () => {
   const [safeZoneMargin, setSafeZoneMargin] = useState(0.1);
   const [svgColorOverride, setSvgColorOverride] = useState<string | null>(null);
   const [useRealDataInterpretation, setUseRealDataInterpretation] = useState(true);
+  const [svgOutlineMode, setSvgOutlineMode] = useState(false);
+  const [svgOutlineWidth, setSvgOutlineWidth] = useState(1);
   const [geometryOptions, setGeometryOptions] = useState<GeometryOptions>({
     boundingRects: false,
     circles: false,
@@ -535,6 +537,44 @@ const Index = () => {
 
           <Separator className="bg-sidebar-border" />
 
+          {/* SVG Outline Mode */}
+          <section>
+            <div className="flex items-center gap-1.5 mb-2">
+              <Layers className="h-3 w-3 text-muted-foreground" />
+              <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider">
+                SVG Outline
+              </Label>
+              <InfoTooltip content="Converte o SVG para modo outline, removendo o preenchimento e mostrando apenas os contornos dos caminhos vetoriais. Útil para analisar a estrutura do logo." />
+            </div>
+            <div className="flex items-center gap-2 mb-2">
+              <Switch
+                id="svg-outline"
+                checked={svgOutlineMode}
+                onCheckedChange={setSvgOutlineMode}
+              />
+              <Label htmlFor="svg-outline" className="text-[10px] text-muted-foreground cursor-pointer">
+                {svgOutlineMode ? "Outline ativo" : "Preenchimento normal"}
+              </Label>
+            </div>
+            {svgOutlineMode && (
+              <div>
+                <Label className="text-[10px] text-muted-foreground mb-1 block">
+                  Espessura: {svgOutlineWidth.toFixed(1)}px
+                </Label>
+                <Slider
+                  min={1}
+                  max={50}
+                  step={1}
+                  value={[svgOutlineWidth * 10]}
+                  onValueChange={(v) => setSvgOutlineWidth(v[0] / 10)}
+                  className="flex-1"
+                />
+              </div>
+            )}
+          </section>
+
+          <Separator className="bg-sidebar-border" />
+
           {/* Real Data Interpretation */}
           <section>
             <div className="flex items-center gap-1.5 mb-2">
@@ -800,6 +840,8 @@ const Index = () => {
           safeZoneMargin={safeZoneMargin}
           svgColorOverride={svgColorOverride}
           useRealDataInterpretation={useRealDataInterpretation}
+          svgOutlineMode={svgOutlineMode}
+          svgOutlineWidth={svgOutlineWidth}
           onProjectReady={(p) => {
             projectRef.current = p;
           }}

@@ -28,6 +28,8 @@ interface PreviewCanvasProps {
   safeZoneMargin?: number;
   svgColorOverride?: string | null;
   useRealDataInterpretation?: boolean;
+  svgOutlineMode?: boolean;
+  svgOutlineWidth?: number;
   onProjectReady?: (project: paper.Project) => void;
 }
 
@@ -42,7 +44,8 @@ const bgClasses: Record<CanvasBackground, string> = {
 const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions,
   geometryOptions, geometryStyles, canvasBackground, modularScaleRatio = 1.618,
-  safeZoneMargin = 0.1, svgColorOverride, useRealDataInterpretation = true, onProjectReady,
+  safeZoneMargin = 0.1, svgColorOverride, useRealDataInterpretation = true,
+  svgOutlineMode = false, svgOutlineWidth = 1, onProjectReady,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -77,6 +80,25 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         }
       };
       applyColor(item);
+    }
+
+    // Apply outline mode: convert fills to strokes
+    if (svgOutlineMode) {
+      const applyOutline = (it: paper.Item) => {
+        if (it instanceof paper.Path || it instanceof paper.CompoundPath) {
+          const pathItem = it as any;
+          const color = pathItem.fillColor || pathItem.strokeColor;
+          if (color) {
+            pathItem.strokeColor = color;
+          }
+          pathItem.fillColor = null;
+          pathItem.strokeWidth = svgOutlineWidth;
+        }
+        if ((it as any).children) {
+          (it as any).children.forEach((child: paper.Item) => applyOutline(child));
+        }
+      };
+      applyOutline(item);
     }
 
     const availW = canvas.width - CANVAS_PADDING * 2;
@@ -194,7 +216,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
     (paper.view as any).draw();
     onProjectReady?.(paper.project);
-  }, [parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions, geometryOptions, geometryStyles, zoom, panOffset, onProjectReady, modularScaleRatio, safeZoneMargin, svgColorOverride, canvasBackground, useRealDataInterpretation]);
+  }, [parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions, geometryOptions, geometryStyles, zoom, panOffset, onProjectReady, modularScaleRatio, safeZoneMargin, svgColorOverride, canvasBackground, useRealDataInterpretation, svgOutlineMode, svgOutlineWidth]);
 
   useEffect(() => { draw(); }, [draw]);
 
