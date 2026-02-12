@@ -1880,7 +1880,7 @@ export function renderParallelFlowLines(
   const dominantAngles: { angle: number; count: number }[] = [];
   const threshold = Math.max(...angleBuckets) * 0.3;
   for (let a = 0; a < 180; a++) {
-    if (angleBuckets[a] < threshold || angleBuckets[a] < 3) continue;
+    if (angleBuckets[a] < threshold || angleBuckets[a] < 1) continue;
     const prev = angleBuckets[(a + 179) % 180];
     const next = angleBuckets[(a + 1) % 180];
     if (angleBuckets[a] >= prev && angleBuckets[a] >= next) {
@@ -1896,6 +1896,38 @@ export function renderParallelFlowLines(
   const cx = bounds.center.x;
   const cy = bounds.center.y;
 
+  // Clip a line segment (x1,y1)-(x2,y2) to a rectangle using Cohen-Sutherland
+  const clipLineToRect = (x1: number, y1: number, x2: number, y2: number,
+    xmin: number, ymin: number, xmax: number, ymax: number
+  ): [number, number, number, number] | null => {
+    const INSIDE = 0, LEFT = 1, RIGHT = 2, BOTTOM = 4, TOP = 8;
+    const code = (x: number, y: number) => {
+      let c = INSIDE;
+      if (x < xmin) c |= LEFT; else if (x > xmax) c |= RIGHT;
+      if (y < ymin) c |= TOP; else if (y > ymax) c |= BOTTOM;
+      return c;
+    };
+    let c1 = code(x1, y1), c2 = code(x2, y2);
+    while (true) {
+      if (!(c1 | c2)) return [x1, y1, x2, y2];
+      if (c1 & c2) return null;
+      const co = c1 ? c1 : c2;
+      let x = 0, y = 0;
+      if (co & BOTTOM) { x = x1 + (x2 - x1) * (ymax - y1) / (y2 - y1); y = ymax; }
+      else if (co & TOP) { x = x1 + (x2 - x1) * (ymin - y1) / (y2 - y1); y = ymin; }
+      else if (co & RIGHT) { y = y1 + (y2 - y1) * (xmax - x1) / (x2 - x1); x = xmax; }
+      else if (co & LEFT) { y = y1 + (y2 - y1) * (xmin - x1) / (x2 - x1); x = xmin; }
+      if (co === c1) { x1 = x; y1 = y; c1 = code(x1, y1); }
+      else { x2 = x; y2 = y; c2 = code(x2, y2); }
+    }
+  };
+
+  const ext = 20;
+  const clipLeft = bounds.left - ext;
+  const clipTop = bounds.top - ext;
+  const clipRight = bounds.right + ext;
+  const clipBottom = bounds.bottom + ext;
+
   topAngles.forEach((da, idx) => {
     const rad = da.angle * Math.PI / 180;
     const dx = Math.cos(rad);
@@ -1909,28 +1941,21 @@ export function renderParallelFlowLines(
     for (let offset = -2; offset <= 2; offset++) {
       const ox = cx + perpDx * offset * spacing;
       const oy = cy + perpDy * offset * spacing;
-      const line = new paper.Path.Line(
-        new paper.Point(ox - dx * diag, oy - dy * diag),
-        new paper.Point(ox + dx * diag, oy + dy * diag)
-      );
-      // Clip to extended bounds
-      const ext = 20;
-      const clipRect = new paper.Rectangle(
-        bounds.left - ext, bounds.top - ext,
-        bounds.width + ext * 2, bounds.height + ext * 2
-      );
-      const clipPath = new paper.Path.Rectangle(clipRect);
-      const intersection = line.intersect(clipPath);
-      line.remove();
-      clipPath.remove();
+      const lx1 = ox - dx * diag;
+      const ly1 = oy - dy * diag;
+      const lx2 = ox + dx * diag;
+      const ly2 = oy + dy * diag;
 
-      if (intersection && intersection.length > 0) {
-        intersection.strokeColor = lineColor;
-        intersection.strokeWidth = style.strokeWidth * (offset === 0 ? 1 : 0.6);
-        intersection.dashArray = offset === 0 ? [] : [4, 4];
-      } else {
-        intersection.remove();
-      }
+      const clipped = clipLineToRect(lx1, ly1, lx2, ly2, clipLeft, clipTop, clipRight, clipBottom);
+      if (!clipped) continue;
+
+      const line = new paper.Path.Line(
+        new paper.Point(clipped[0], clipped[1]),
+        new paper.Point(clipped[2], clipped[3])
+      );
+      line.strokeColor = lineColor;
+      line.strokeWidth = style.strokeWidth * (offset === 0 ? 1 : 0.6);
+      line.dashArray = offset === 0 ? [] : [4, 4];
     }
 
     // Label
@@ -1953,7 +1978,8 @@ export function renderParallelFlowLines(
 export function renderUnderlyingCircles(
   bounds: paper.Rectangle,
   style: StyleConfig,
-  context?: RenderContext
+  context?: RenderContext,
+  maxCircles: number = 6
 ) {
   if (!context?.useRealData || !context?.actualPaths || context.actualPaths.length === 0) return;
 
@@ -2018,9 +2044,9 @@ export function renderUnderlyingCircles(
     }
   }
 
-  // Sort by score (most curves match this circle) and take top 6
+  // Sort by score (most curves match this circle) and take top N
   candidates.sort((a, b) => b.score - a.score);
-  const topCircles = candidates.slice(0, 6);
+  const topCircles = candidates.slice(0, maxCircles);
 
   topCircles.forEach((c, idx) => {
     const circle = new paper.Path.Circle(new paper.Point(c.cx, c.cy), c.r);

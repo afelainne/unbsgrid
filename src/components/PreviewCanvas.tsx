@@ -34,6 +34,7 @@ interface PreviewCanvasProps {
   svgOutlineWidth?: number;
   svgOutlineDash?: number[];
   svgOutlineLineCap?: string;
+  maxCircles?: number;
   onProjectReady?: (project: paper.Project) => void;
 }
 
@@ -50,6 +51,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   geometryOptions, geometryStyles, canvasBackground, modularScaleRatio = 1.618,
   safeZoneMargin = 0.1, svgColorOverride, useRealDataInterpretation = true,
   svgOutlineMode = false, svgOutlineWidth = 1, svgOutlineDash = [], svgOutlineLineCap = 'butt',
+  maxCircles = 6,
   onProjectReady,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -222,7 +224,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     if (geometryOptions.harmonicDivisions) renderHarmonicDivisions(bounds, s.harmonicDivisions, renderContext);
     // Advanced SVG Analysis
     if (geometryOptions.parallelFlowLines) renderParallelFlowLines(bounds, s.parallelFlowLines, renderContext);
-    if (geometryOptions.underlyingCircles) renderUnderlyingCircles(bounds, s.underlyingCircles, renderContext);
+    if (geometryOptions.underlyingCircles) renderUnderlyingCircles(bounds, s.underlyingCircles, renderContext, maxCircles);
     if (geometryOptions.dominantDiagonals) renderDominantDiagonals(bounds, s.dominantDiagonals, renderContext);
     if (geometryOptions.curvatureComb) renderCurvatureComb(bounds, s.curvatureComb, renderContext);
     if (geometryOptions.skeletonCenterline) renderSkeletonCenterline(bounds, s.skeletonCenterline, renderContext);
@@ -232,7 +234,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
     (paper.view as any).draw();
     onProjectReady?.(paper.project);
-  }, [parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions, geometryOptions, geometryStyles, zoom, panOffset, onProjectReady, modularScaleRatio, safeZoneMargin, svgColorOverride, canvasBackground, useRealDataInterpretation, svgOutlineMode, svgOutlineWidth, svgOutlineDash, svgOutlineLineCap]);
+  }, [parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions, geometryOptions, geometryStyles, zoom, panOffset, onProjectReady, modularScaleRatio, safeZoneMargin, svgColorOverride, canvasBackground, useRealDataInterpretation, svgOutlineMode, svgOutlineWidth, svgOutlineDash, svgOutlineLineCap, maxCircles]);
 
   useEffect(() => { draw(); }, [draw]);
 
