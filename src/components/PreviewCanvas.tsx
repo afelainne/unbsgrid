@@ -14,6 +14,7 @@ import {
   renderVesicaPiscis, renderRuleOfOdds, renderVisualWeightMap, renderAnchoringPoints, renderHarmonicDivisions,
   renderParallelFlowLines, renderUnderlyingCircles, renderDominantDiagonals, renderCurvatureComb,
   renderSkeletonCenterline, renderConstructionGrid, renderPathDirectionArrows, renderTangentIntersections,
+  renderAnchorPoints,
 } from '@/components/geometry-renderers';
 import { Button } from '@/components/ui/button';
 
@@ -35,6 +36,7 @@ interface PreviewCanvasProps {
   svgOutlineDash?: number[];
   svgOutlineLineCap?: string;
   maxCircles?: number;
+  anchorPointSize?: number;
   onProjectReady?: (project: paper.Project) => void;
 }
 
@@ -52,6 +54,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   safeZoneMargin = 0.1, svgColorOverride, useRealDataInterpretation = true,
   svgOutlineMode = false, svgOutlineWidth = 1, svgOutlineDash = [], svgOutlineLineCap = 'butt',
   maxCircles = 6,
+  anchorPointSize = 3,
   onProjectReady,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -231,10 +234,11 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     if (geometryOptions.constructionGrid) renderConstructionGrid(bounds, s.constructionGrid, renderContext);
     if (geometryOptions.pathDirectionArrows) renderPathDirectionArrows(bounds, s.pathDirectionArrows, renderContext);
     if (geometryOptions.tangentIntersections) renderTangentIntersections(bounds, s.tangentIntersections, renderContext);
+    if (geometryOptions.anchorPoints) renderAnchorPoints(bounds, s.anchorPoints, renderContext, anchorPointSize);
 
     (paper.view as any).draw();
     onProjectReady?.(paper.project);
-  }, [parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions, geometryOptions, geometryStyles, zoom, panOffset, onProjectReady, modularScaleRatio, safeZoneMargin, svgColorOverride, canvasBackground, useRealDataInterpretation, svgOutlineMode, svgOutlineWidth, svgOutlineDash, svgOutlineLineCap, maxCircles]);
+  }, [parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions, geometryOptions, geometryStyles, zoom, panOffset, onProjectReady, modularScaleRatio, safeZoneMargin, svgColorOverride, canvasBackground, useRealDataInterpretation, svgOutlineMode, svgOutlineWidth, svgOutlineDash, svgOutlineLineCap, maxCircles, anchorPointSize]);
 
   useEffect(() => { draw(); }, [draw]);
 

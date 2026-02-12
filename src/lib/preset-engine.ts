@@ -28,6 +28,7 @@ const allOff: GeometryOptions = {
   vesicaPiscis: false, ruleOfOdds: false, visualWeightMap: false, anchoringPoints: false, harmonicDivisions: false,
   parallelFlowLines: false, underlyingCircles: false, dominantDiagonals: false, curvatureComb: false,
   skeletonCenterline: false, constructionGrid: false, pathDirectionArrows: false, tangentIntersections: false,
+  anchorPoints: false,
 };
 
 const defaultStyle = (color: string, opacity: number, strokeWidth: number) => ({ color, opacity, strokeWidth });
@@ -71,6 +72,7 @@ const defaultStyles: GeometryStyles = {
   constructionGrid:      defaultStyle('#7799dd', 0.35, 0.6),
   pathDirectionArrows:   defaultStyle('#ee8844', 0.55, 1),
   tangentIntersections:  defaultStyle('#aa55cc', 0.45, 0.8),
+  anchorPoints:          defaultStyle('#ff5566', 0.7, 1),
 };
 
 export function getBuiltinPresets(): GeometryPreset[] {
@@ -117,7 +119,7 @@ export function getBuiltinPresets(): GeometryPreset[] {
       name: 'Anatomia Estrutural',
       description: 'Curvas bezier, tangentes, curvatura e construção geométrica do logo',
       isBuiltin: true,
-      geometryOptions: { ...allOff, bezierHandles: true, tangentLines: true, curvatureComb: true, tangentIntersections: true, underlyingCircles: true },
+      geometryOptions: { ...allOff, bezierHandles: true, tangentLines: true, curvatureComb: true, tangentIntersections: true, underlyingCircles: true, anchorPoints: true },
       geometryStyles: {
         ...defaultStyles,
         bezierHandles: defaultStyle('#ff5577', 0.6, 1),
@@ -256,6 +258,7 @@ export function getBuiltinPresets(): GeometryPreset[] {
         vesicaPiscis: true, ruleOfOdds: true, visualWeightMap: true, anchoringPoints: true, harmonicDivisions: true,
         parallelFlowLines: true, underlyingCircles: true, dominantDiagonals: true, curvatureComb: true,
         skeletonCenterline: true, constructionGrid: true, pathDirectionArrows: true, tangentIntersections: true,
+        anchorPoints: true,
       },
       geometryStyles: { ...defaultStyles },
       clearspaceValue: 1, clearspaceUnit: 'logomark', showGrid: true, gridSubdivisions: 8,

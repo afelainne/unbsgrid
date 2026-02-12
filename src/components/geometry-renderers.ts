@@ -1242,9 +1242,10 @@ export function renderOpticalCenter(
   circle.fillColor = hexToColor(style.color, style.opacity * 0.1);
 
   // Geometric center marker (small dot for comparison)
-  const geoDot = new paper.Path.Circle(bounds.center, 3);
+  const geoDot = new paper.Path.Circle(bounds.center, 2 + style.strokeWidth);
   geoDot.fillColor = hexToColor(style.color, style.opacity * 0.4);
-  geoDot.strokeColor = null;
+  geoDot.strokeColor = hexToColor(style.color, style.opacity * 0.6);
+  geoDot.strokeWidth = style.strokeWidth * 0.5;
 
   // Dashed line connecting both
   const connector = new paper.Path.Line(bounds.center, new paper.Point(cx, opticalY));
@@ -1736,7 +1737,7 @@ export function renderAnchoringPoints(
   context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
-  const size = 6;
+  const size = 4 + style.strokeWidth * 2;
 
   const points = [
     bounds.topLeft, new paper.Point(bounds.center.x, bounds.top), bounds.topRight,
@@ -1774,9 +1775,10 @@ export function renderAnchoringPoints(
     v.strokeWidth = style.strokeWidth;
 
     // Small circle
-    const dot = new paper.Path.Circle(pt, 2.5);
+    const dot = new paper.Path.Circle(pt, 1.5 + style.strokeWidth);
     dot.fillColor = color;
-    dot.strokeColor = null;
+    dot.strokeColor = hexToColor('#ffffff', style.opacity * 0.6);
+    dot.strokeWidth = style.strokeWidth * 0.3;
   });
 }
 
@@ -1855,48 +1857,10 @@ export function renderParallelFlowLines(
   if (!context?.useRealData || !context?.actualPaths || context.actualPaths.length === 0) return;
 
   const color = hexToColor(style.color, style.opacity);
-  const dimColor = hexToColor(style.color, style.opacity * 0.4);
+  const dimColor = hexToColor(style.color, style.opacity * 0.5);
   const paths = context.actualPaths;
 
-  // Sample tangent angles along all paths
-  const angleBuckets = new Array(180).fill(0);
-  for (const path of paths) {
-    if (!path.length || path.length < 1) continue;
-    const steps = Math.max(10, Math.floor(path.length / 3));
-    for (let i = 0; i <= steps; i++) {
-      const offset = (i / steps) * path.length;
-      try {
-        const tangent = path.getTangentAt(offset);
-        if (!tangent) continue;
-        let angle = Math.round(Math.atan2(tangent.y, tangent.x) * 180 / Math.PI);
-        if (angle < 0) angle += 180;
-        angle = angle % 180;
-        angleBuckets[angle]++;
-      } catch { /* skip invalid offsets */ }
-    }
-  }
-
-  // Find dominant angles (peaks in histogram)
-  const dominantAngles: { angle: number; count: number }[] = [];
-  const threshold = Math.max(...angleBuckets) * 0.3;
-  for (let a = 0; a < 180; a++) {
-    if (angleBuckets[a] < threshold || angleBuckets[a] < 1) continue;
-    const prev = angleBuckets[(a + 179) % 180];
-    const next = angleBuckets[(a + 1) % 180];
-    if (angleBuckets[a] >= prev && angleBuckets[a] >= next) {
-      dominantAngles.push({ angle: a, count: angleBuckets[a] });
-    }
-  }
-
-  // Sort by count and take top 3
-  dominantAngles.sort((a, b) => b.count - a.count);
-  const topAngles = dominantAngles.slice(0, 3);
-
-  const diag = Math.sqrt(bounds.width * bounds.width + bounds.height * bounds.height);
-  const cx = bounds.center.x;
-  const cy = bounds.center.y;
-
-  // Clip a line segment (x1,y1)-(x2,y2) to a rectangle using Cohen-Sutherland
+  // Cohen-Sutherland line clipping
   const clipLineToRect = (x1: number, y1: number, x2: number, y2: number,
     xmin: number, ymin: number, xmax: number, ymax: number
   ): [number, number, number, number] | null => {
@@ -1922,47 +1886,160 @@ export function renderParallelFlowLines(
     }
   };
 
-  const ext = 20;
+  interface SegmentInfo {
+    angle: number; // 0-180 normalized
+    midX: number;
+    midY: number;
+    dx: number;
+    dy: number;
+  }
+
+  const segments: SegmentInfo[] = [];
+
+  // Extract segment directions from actual path geometry
+  for (const path of paths) {
+    if (!path.segments || path.segments.length < 2) continue;
+
+    for (let i = 0; i < path.segments.length; i++) {
+      const seg = path.segments[i];
+      const nextSeg = path.segments[(i + 1) % path.segments.length];
+      if (!nextSeg || (i === path.segments.length - 1 && !path.closed)) continue;
+
+      const p1 = seg.point;
+      const p2 = nextSeg.point;
+      const segDx = p2.x - p1.x;
+      const segDy = p2.y - p1.y;
+      const segLen = Math.sqrt(segDx * segDx + segDy * segDy);
+      if (segLen < 1) continue;
+
+      // Normalize direction
+      const ndx = segDx / segLen;
+      const ndy = segDy / segLen;
+
+      let angle = Math.round(Math.atan2(ndy, ndx) * 180 / Math.PI);
+      if (angle < 0) angle += 180;
+      angle = angle % 180;
+
+      segments.push({
+        angle,
+        midX: (p1.x + p2.x) / 2,
+        midY: (p1.y + p2.y) / 2,
+        dx: ndx,
+        dy: ndy,
+      });
+    }
+
+    // Also sample curves for their tangent directions at key points
+    if (path.curves) {
+      for (const curve of path.curves) {
+        if (!curve.hasHandles()) continue;
+        const curveLen = curve.length;
+        if (curveLen < 2) continue;
+        // Sample at 0%, 50%, 100%
+        for (const t of [0.0, 0.5, 1.0]) {
+          try {
+            const pt = curve.getPointAt(curveLen * t);
+            const tan = curve.getTangentAt(curveLen * t);
+            if (!pt || !tan) continue;
+            let angle = Math.round(Math.atan2(tan.y, tan.x) * 180 / Math.PI);
+            if (angle < 0) angle += 180;
+            angle = angle % 180;
+            segments.push({ angle, midX: pt.x, midY: pt.y, dx: tan.x, dy: tan.y });
+          } catch { /* skip */ }
+        }
+      }
+    }
+  }
+
+  if (segments.length === 0) return;
+
+  // Group segments by angle (tolerance ±3°)
+  const angleTolerance = 3;
+  interface AngleGroup {
+    angle: number;
+    dx: number;
+    dy: number;
+    points: { x: number; y: number }[];
+  }
+  const groups: AngleGroup[] = [];
+
+  for (const seg of segments) {
+    let found = false;
+    for (const g of groups) {
+      const diff = Math.abs(g.angle - seg.angle);
+      if (diff <= angleTolerance || diff >= 180 - angleTolerance) {
+        g.points.push({ x: seg.midX, y: seg.midY });
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      groups.push({ angle: seg.angle, dx: seg.dx, dy: seg.dy, points: [{ x: seg.midX, y: seg.midY }] });
+    }
+  }
+
+  // Sort by point count (most used direction first), take top 5
+  groups.sort((a, b) => b.points.length - a.points.length);
+  const topGroups = groups.slice(0, 5);
+
+  const diag = Math.sqrt(bounds.width * bounds.width + bounds.height * bounds.height);
+  const ext = 30;
   const clipLeft = bounds.left - ext;
   const clipTop = bounds.top - ext;
   const clipRight = bounds.right + ext;
   const clipBottom = bounds.bottom + ext;
 
-  topAngles.forEach((da, idx) => {
-    const rad = da.angle * Math.PI / 180;
+  topGroups.forEach((group, gIdx) => {
+    const rad = group.angle * Math.PI / 180;
     const dx = Math.cos(rad);
     const dy = Math.sin(rad);
+    const lineColor = gIdx < 2 ? color : dimColor;
+    const sw = style.strokeWidth * (gIdx < 2 ? 1 : 0.7);
+
+    // Deduplicate points that are too close along perpendicular axis
     const perpDx = -dy;
     const perpDy = dx;
-    const lineColor = idx === 0 ? color : dimColor;
+    // Project each point onto perpendicular axis to find unique parallel line positions
+    const projections: { proj: number; x: number; y: number }[] = group.points.map(p => ({
+      proj: p.x * perpDx + p.y * perpDy,
+      x: p.x,
+      y: p.y,
+    }));
+    projections.sort((a, b) => a.proj - b.proj);
 
-    // Draw parallel lines through the center and offset positions
-    const spacing = Math.min(bounds.width, bounds.height) * 0.2;
-    for (let offset = -2; offset <= 2; offset++) {
-      const ox = cx + perpDx * offset * spacing;
-      const oy = cy + perpDy * offset * spacing;
-      const lx1 = ox - dx * diag;
-      const ly1 = oy - dy * diag;
-      const lx2 = ox + dx * diag;
-      const ly2 = oy + dy * diag;
+    // Merge close projections
+    const minSpacing = Math.min(bounds.width, bounds.height) * 0.04;
+    const uniqueLines: { x: number; y: number }[] = [];
+    for (const p of projections) {
+      if (uniqueLines.length === 0 || Math.abs(p.proj - (uniqueLines[uniqueLines.length - 1].x * perpDx + uniqueLines[uniqueLines.length - 1].y * perpDy)) > minSpacing) {
+        uniqueLines.push({ x: p.x, y: p.y });
+      }
+    }
+
+    // Draw a construction line through each unique position
+    uniqueLines.forEach((pt, lIdx) => {
+      const lx1 = pt.x - dx * diag;
+      const ly1 = pt.y - dy * diag;
+      const lx2 = pt.x + dx * diag;
+      const ly2 = pt.y + dy * diag;
 
       const clipped = clipLineToRect(lx1, ly1, lx2, ly2, clipLeft, clipTop, clipRight, clipBottom);
-      if (!clipped) continue;
+      if (!clipped) return;
 
       const line = new paper.Path.Line(
         new paper.Point(clipped[0], clipped[1]),
         new paper.Point(clipped[2], clipped[3])
       );
       line.strokeColor = lineColor;
-      line.strokeWidth = style.strokeWidth * (offset === 0 ? 1 : 0.6);
-      line.dashArray = offset === 0 ? [] : [4, 4];
-    }
+      line.strokeWidth = sw;
+      line.dashArray = lIdx === 0 ? [] : [5, 3];
+    });
 
-    // Label
-    if (idx === 0) {
-      const label = new paper.PointText(new paper.Point(bounds.right + 8, bounds.top + 12 + idx * 14));
-      label.content = `${da.angle}°`;
-      label.fillColor = color;
+    // Angle label for top groups
+    if (gIdx < 3) {
+      const label = new paper.PointText(new paper.Point(bounds.right + 8, bounds.top + 12 + gIdx * 14));
+      label.content = `${group.angle}° (${group.points.length})`;
+      label.fillColor = gIdx < 2 ? color : dimColor;
       label.fontSize = 9;
       label.fontWeight = 'bold';
     }
@@ -2387,7 +2464,7 @@ export function renderPathDirectionArrows(
 
   const color = hexToColor(style.color, style.opacity);
   const paths = context.actualPaths;
-  const arrowSize = Math.min(bounds.width, bounds.height) * 0.02;
+  const arrowSize = Math.min(bounds.width, bounds.height) * 0.02 + style.strokeWidth * 1.5;
 
   for (const path of paths) {
     if (!path.length || path.length < 5) continue;
@@ -2501,7 +2578,7 @@ export function renderTangentIntersections(
   }
 
   // Draw diamonds at intersection points (construction points)
-  const markerSize = Math.max(3, Math.min(bounds.width, bounds.height) * 0.012);
+  const markerSize = Math.max(3, Math.min(bounds.width, bounds.height) * 0.012) + style.strokeWidth;
   intersectionPoints.slice(0, 20).forEach(pt => {
     const diamond = new paper.Path([
       new paper.Segment(new paper.Point(pt.x, pt.y - markerSize)),
@@ -2513,4 +2590,71 @@ export function renderTangentIntersections(
     diamond.fillColor = color;
     diamond.strokeColor = null;
   });
+}
+
+/**
+ * Anchor Points
+ * Displays all anchor points (nodes) of the SVG paths with adjustable marker size.
+ * Shows the skeleton of the vector construction.
+ */
+export function renderAnchorPoints(
+  bounds: paper.Rectangle,
+  style: StyleConfig,
+  context?: RenderContext,
+  pointSize: number = 3
+) {
+  if (!context?.useRealData || !context?.actualPaths || context.actualPaths.length === 0) return;
+
+  const color = hexToColor(style.color, style.opacity);
+  const handleColor = hexToColor(style.color, style.opacity * 0.4);
+  const paths = context.actualPaths;
+
+  for (const path of paths) {
+    if (!path.segments || path.segments.length === 0) continue;
+
+    for (const seg of path.segments) {
+      const pt = seg.point;
+
+      // Draw handle lines if they exist
+      if (seg.handleIn && (seg.handleIn.x !== 0 || seg.handleIn.y !== 0)) {
+        const hIn = pt.add(seg.handleIn);
+        const handleLine = new paper.Path.Line(pt, hIn);
+        handleLine.strokeColor = handleColor;
+        handleLine.strokeWidth = style.strokeWidth * 0.4;
+        const handleDot = new paper.Path.Circle(hIn, pointSize * 0.5);
+        handleDot.fillColor = handleColor;
+        handleDot.strokeColor = null;
+      }
+      if (seg.handleOut && (seg.handleOut.x !== 0 || seg.handleOut.y !== 0)) {
+        const hOut = pt.add(seg.handleOut);
+        const handleLine = new paper.Path.Line(pt, hOut);
+        handleLine.strokeColor = handleColor;
+        handleLine.strokeWidth = style.strokeWidth * 0.4;
+        const handleDot = new paper.Path.Circle(hOut, pointSize * 0.5);
+        handleDot.fillColor = handleColor;
+        handleDot.strokeColor = null;
+      }
+
+      // Determine if this is a corner or smooth point
+      const hasHandles = (seg.handleIn && (seg.handleIn.x !== 0 || seg.handleIn.y !== 0)) ||
+                          (seg.handleOut && (seg.handleOut.x !== 0 || seg.handleOut.y !== 0));
+
+      if (hasHandles) {
+        // Smooth point: circle
+        const dot = new paper.Path.Circle(pt, pointSize);
+        dot.fillColor = color;
+        dot.strokeColor = hexToColor('#ffffff', style.opacity * 0.8);
+        dot.strokeWidth = style.strokeWidth * 0.3;
+      } else {
+        // Corner point: square
+        const half = pointSize;
+        const sq = new paper.Path.Rectangle(
+          new paper.Rectangle(pt.x - half, pt.y - half, half * 2, half * 2)
+        );
+        sq.fillColor = color;
+        sq.strokeColor = hexToColor('#ffffff', style.opacity * 0.8);
+        sq.strokeWidth = style.strokeWidth * 0.3;
+      }
+    }
+  }
 }

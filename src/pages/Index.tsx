@@ -79,6 +79,7 @@ export interface GeometryOptions {
   constructionGrid: boolean;
   pathDirectionArrows: boolean;
   tangentIntersections: boolean;
+  anchorPoints: boolean;
 }
 
 export interface GeometryStyle {
@@ -130,6 +131,7 @@ const defaultStyles: GeometryStyles = {
   constructionGrid: { color: "#7799dd", opacity: 0.35, strokeWidth: 0.6 },
   pathDirectionArrows: { color: "#ee8844", opacity: 0.55, strokeWidth: 1 },
   tangentIntersections: { color: "#aa55cc", opacity: 0.45, strokeWidth: 0.8 },
+  anchorPoints: { color: "#ff5566", opacity: 0.7, strokeWidth: 1 },
 };
 
 const geometryLabels: Record<keyof GeometryOptions, string> = {
@@ -171,6 +173,7 @@ const geometryLabels: Record<keyof GeometryOptions, string> = {
   constructionGrid: "Construction Grid",
   pathDirectionArrows: "Path Direction Arrows",
   tangentIntersections: "Tangent Intersections",
+  anchorPoints: "Anchor Points",
 };
 
 const geometryGroups: { label: string; keys: (keyof GeometryOptions)[] }[] = [
@@ -185,6 +188,7 @@ const geometryGroups: { label: string; keys: (keyof GeometryOptions)[] }[] = [
       "constructionGrid",
       "pathDirectionArrows",
       "tangentIntersections",
+      "anchorPoints",
       "bezierHandles",
       "opticalCenter",
       "visualWeightMap",
@@ -262,6 +266,7 @@ const Index = () => {
   const [modularScaleRatio, setModularScaleRatio] = useState(1.618);
   const [safeZoneMargin, setSafeZoneMargin] = useState(0.1);
   const [maxCircles, setMaxCircles] = useState(6);
+  const [anchorPointSize, setAnchorPointSize] = useState(3);
   const [svgColorOverride, setSvgColorOverride] = useState<string | null>(null);
   const [useRealDataInterpretation, setUseRealDataInterpretation] = useState(true);
   const [svgOutlineMode, setSvgOutlineMode] = useState(false);
@@ -307,6 +312,7 @@ const Index = () => {
     constructionGrid: false,
     pathDirectionArrows: false,
     tangentIntersections: false,
+    anchorPoints: false,
   });
   const [geometryStyles, setGeometryStyles] = useState<GeometryStyles>({ ...defaultStyles });
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
@@ -962,6 +968,25 @@ const Index = () => {
                                 </div>
                               </div>
                             )}
+                            {/* Extra controls for anchorPoints */}
+                            {key === "anchorPoints" && (
+                              <div className="pl-7 pr-1 pb-2">
+                                <div className="flex items-center gap-2">
+                                  <Label className="text-[10px] text-muted-foreground w-8">Size</Label>
+                                  <Slider
+                                    min={1}
+                                    max={15}
+                                    step={1}
+                                    value={[anchorPointSize]}
+                                    onValueChange={(v) => setAnchorPointSize(v[0])}
+                                    className="flex-1"
+                                  />
+                                  <span className="text-[9px] text-muted-foreground w-6 text-right">
+                                    {anchorPointSize}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                           </>
                         )}
                       </div>
@@ -1029,6 +1054,7 @@ const Index = () => {
           svgOutlineDash={svgOutlineDash}
           svgOutlineLineCap={svgOutlineLineCap}
           maxCircles={maxCircles}
+          anchorPointSize={anchorPointSize}
           onProjectReady={(p) => {
             projectRef.current = p;
           }}
