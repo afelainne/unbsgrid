@@ -70,6 +70,15 @@ export interface GeometryOptions {
   visualWeightMap: boolean;
   anchoringPoints: boolean;
   harmonicDivisions: boolean;
+  // Advanced SVG Analysis
+  parallelFlowLines: boolean;
+  underlyingCircles: boolean;
+  dominantDiagonals: boolean;
+  curvatureComb: boolean;
+  skeletonCenterline: boolean;
+  constructionGrid: boolean;
+  pathDirectionArrows: boolean;
+  tangentIntersections: boolean;
 }
 
 export interface GeometryStyle {
@@ -113,6 +122,14 @@ const defaultStyles: GeometryStyles = {
   visualWeightMap: { color: "#cc8844", opacity: 0.3, strokeWidth: 1 },
   anchoringPoints: { color: "#44ddbb", opacity: 0.6, strokeWidth: 1.5 },
   harmonicDivisions: { color: "#aa66dd", opacity: 0.4, strokeWidth: 0.8 },
+  parallelFlowLines: { color: "#55aaee", opacity: 0.45, strokeWidth: 0.8 },
+  underlyingCircles: { color: "#ee6688", opacity: 0.4, strokeWidth: 1 },
+  dominantDiagonals: { color: "#dd7733", opacity: 0.45, strokeWidth: 0.8 },
+  curvatureComb: { color: "#77cc55", opacity: 0.5, strokeWidth: 0.5 },
+  skeletonCenterline: { color: "#cc55aa", opacity: 0.5, strokeWidth: 1.2 },
+  constructionGrid: { color: "#7799dd", opacity: 0.35, strokeWidth: 0.6 },
+  pathDirectionArrows: { color: "#ee8844", opacity: 0.55, strokeWidth: 1 },
+  tangentIntersections: { color: "#aa55cc", opacity: 0.45, strokeWidth: 0.8 },
 };
 
 const geometryLabels: Record<keyof GeometryOptions, string> = {
@@ -146,9 +163,33 @@ const geometryLabels: Record<keyof GeometryOptions, string> = {
   visualWeightMap: "Visual Weight Map",
   anchoringPoints: "Anchoring Points",
   harmonicDivisions: "Harmonic Divisions",
+  parallelFlowLines: "Parallel Flow Lines",
+  underlyingCircles: "Underlying Circles",
+  dominantDiagonals: "Dominant Diagonals",
+  curvatureComb: "Curvature Comb",
+  skeletonCenterline: "Skeleton Centerline",
+  constructionGrid: "Construction Grid",
+  pathDirectionArrows: "Path Direction Arrows",
+  tangentIntersections: "Tangent Intersections",
 };
 
 const geometryGroups: { label: string; keys: (keyof GeometryOptions)[] }[] = [
+  {
+    label: "Advanced",
+    keys: [
+      "parallelFlowLines",
+      "underlyingCircles",
+      "dominantDiagonals",
+      "curvatureComb",
+      "skeletonCenterline",
+      "constructionGrid",
+      "pathDirectionArrows",
+      "tangentIntersections",
+      "bezierHandles",
+      "opticalCenter",
+      "visualWeightMap",
+    ],
+  },
   { label: "Basic", keys: ["boundingRects", "circles", "centerLines", "diagonals", "tangentLines", "anchoringPoints"] },
   { label: "Proportions", keys: ["goldenRatio", "goldenSpiral", "thirdLines", "typographicProportions", "ruleOfOdds"] },
   {
@@ -164,18 +205,7 @@ const geometryGroups: { label: string; keys: (keyof GeometryOptions)[] }[] = [
     ],
   },
   { label: "Harmony", keys: ["rootRectangles", "modularScale", "safeZone", "fibonacciOverlay", "vesicaPiscis"] },
-  {
-    label: "Advanced",
-    keys: [
-      "bezierHandles",
-      "isometricGrid",
-      "pixelGrid",
-      "opticalCenter",
-      "contrastGuide",
-      "kenBurnsSafe",
-      "visualWeightMap",
-    ],
-  },
+  { label: "Grid & Output", keys: ["isometricGrid", "pixelGrid", "contrastGuide", "kenBurnsSafe"] },
 ];
 
 interface StyleControlProps {
@@ -268,14 +298,23 @@ const Index = () => {
     visualWeightMap: false,
     anchoringPoints: false,
     harmonicDivisions: false,
+    parallelFlowLines: false,
+    underlyingCircles: false,
+    dominantDiagonals: false,
+    curvatureComb: false,
+    skeletonCenterline: false,
+    constructionGrid: false,
+    pathDirectionArrows: false,
+    tangentIntersections: false,
   });
   const [geometryStyles, setGeometryStyles] = useState<GeometryStyles>({ ...defaultStyles });
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    Basic: true,
+    Advanced: true,
+    Basic: false,
     Proportions: false,
     Measurement: false,
     Harmony: false,
-    Advanced: false,
+    "Grid & Output": false,
   });
   const [presets, setPresets] = useState<GeometryPreset[]>([]);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);

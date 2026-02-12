@@ -12,6 +12,8 @@ import {
   renderPixelGrid, renderOpticalCenter, renderContrastGuide,
   renderDynamicBaseline, renderFibonacciOverlay, renderKenBurnsSafe, renderComponentRatioLabels,
   renderVesicaPiscis, renderRuleOfOdds, renderVisualWeightMap, renderAnchoringPoints, renderHarmonicDivisions,
+  renderParallelFlowLines, renderUnderlyingCircles, renderDominantDiagonals, renderCurvatureComb,
+  renderSkeletonCenterline, renderConstructionGrid, renderPathDirectionArrows, renderTangentIntersections,
 } from '@/components/geometry-renderers';
 import { Button } from '@/components/ui/button';
 
@@ -218,6 +220,15 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     if (geometryOptions.visualWeightMap) renderVisualWeightMap(bounds, scaledCompBounds, s.visualWeightMap, renderContext);
     if (geometryOptions.anchoringPoints) renderAnchoringPoints(bounds, s.anchoringPoints, renderContext);
     if (geometryOptions.harmonicDivisions) renderHarmonicDivisions(bounds, s.harmonicDivisions, renderContext);
+    // Advanced SVG Analysis
+    if (geometryOptions.parallelFlowLines) renderParallelFlowLines(bounds, s.parallelFlowLines, renderContext);
+    if (geometryOptions.underlyingCircles) renderUnderlyingCircles(bounds, s.underlyingCircles, renderContext);
+    if (geometryOptions.dominantDiagonals) renderDominantDiagonals(bounds, s.dominantDiagonals, renderContext);
+    if (geometryOptions.curvatureComb) renderCurvatureComb(bounds, s.curvatureComb, renderContext);
+    if (geometryOptions.skeletonCenterline) renderSkeletonCenterline(bounds, s.skeletonCenterline, renderContext);
+    if (geometryOptions.constructionGrid) renderConstructionGrid(bounds, s.constructionGrid, renderContext);
+    if (geometryOptions.pathDirectionArrows) renderPathDirectionArrows(bounds, s.pathDirectionArrows, renderContext);
+    if (geometryOptions.tangentIntersections) renderTangentIntersections(bounds, s.tangentIntersections, renderContext);
 
     (paper.view as any).draw();
     onProjectReady?.(paper.project);

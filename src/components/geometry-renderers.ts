@@ -1834,3 +1834,657 @@ export function renderHarmonicDivisions(
     label.fontSize = 7;
   });
 }
+
+// ============================================================
+// ADVANCED SVG ANALYSIS TOOLS
+// Inspired by logo construction techniques from design literature
+// (Geometry of Design, Logo Modernism, Grid Systems in Graphic Design)
+// ============================================================
+
+/**
+ * Parallel Flow Lines
+ * Detects dominant directions in the SVG paths by sampling tangent vectors,
+ * then draws parallel construction lines along those directions.
+ * Reference: Kimberly Elam - Geometry of Design
+ */
+export function renderParallelFlowLines(
+  bounds: paper.Rectangle,
+  style: StyleConfig,
+  context?: RenderContext
+) {
+  if (!context?.useRealData || !context?.actualPaths || context.actualPaths.length === 0) return;
+
+  const color = hexToColor(style.color, style.opacity);
+  const dimColor = hexToColor(style.color, style.opacity * 0.4);
+  const paths = context.actualPaths;
+
+  // Sample tangent angles along all paths
+  const angleBuckets = new Array(180).fill(0);
+  for (const path of paths) {
+    if (!path.length || path.length < 1) continue;
+    const steps = Math.max(10, Math.floor(path.length / 3));
+    for (let i = 0; i <= steps; i++) {
+      const offset = (i / steps) * path.length;
+      try {
+        const tangent = path.getTangentAt(offset);
+        if (!tangent) continue;
+        let angle = Math.round(Math.atan2(tangent.y, tangent.x) * 180 / Math.PI);
+        if (angle < 0) angle += 180;
+        angle = angle % 180;
+        angleBuckets[angle]++;
+      } catch { /* skip invalid offsets */ }
+    }
+  }
+
+  // Find dominant angles (peaks in histogram)
+  const dominantAngles: { angle: number; count: number }[] = [];
+  const threshold = Math.max(...angleBuckets) * 0.3;
+  for (let a = 0; a < 180; a++) {
+    if (angleBuckets[a] < threshold || angleBuckets[a] < 3) continue;
+    const prev = angleBuckets[(a + 179) % 180];
+    const next = angleBuckets[(a + 1) % 180];
+    if (angleBuckets[a] >= prev && angleBuckets[a] >= next) {
+      dominantAngles.push({ angle: a, count: angleBuckets[a] });
+    }
+  }
+
+  // Sort by count and take top 3
+  dominantAngles.sort((a, b) => b.count - a.count);
+  const topAngles = dominantAngles.slice(0, 3);
+
+  const diag = Math.sqrt(bounds.width * bounds.width + bounds.height * bounds.height);
+  const cx = bounds.center.x;
+  const cy = bounds.center.y;
+
+  topAngles.forEach((da, idx) => {
+    const rad = da.angle * Math.PI / 180;
+    const dx = Math.cos(rad);
+    const dy = Math.sin(rad);
+    const perpDx = -dy;
+    const perpDy = dx;
+    const lineColor = idx === 0 ? color : dimColor;
+
+    // Draw parallel lines through the center and offset positions
+    const spacing = Math.min(bounds.width, bounds.height) * 0.2;
+    for (let offset = -2; offset <= 2; offset++) {
+      const ox = cx + perpDx * offset * spacing;
+      const oy = cy + perpDy * offset * spacing;
+      const line = new paper.Path.Line(
+        new paper.Point(ox - dx * diag, oy - dy * diag),
+        new paper.Point(ox + dx * diag, oy + dy * diag)
+      );
+      // Clip to extended bounds
+      const ext = 20;
+      const clipRect = new paper.Rectangle(
+        bounds.left - ext, bounds.top - ext,
+        bounds.width + ext * 2, bounds.height + ext * 2
+      );
+      const clipPath = new paper.Path.Rectangle(clipRect);
+      const intersection = line.intersect(clipPath);
+      line.remove();
+      clipPath.remove();
+
+      if (intersection && intersection.length > 0) {
+        intersection.strokeColor = lineColor;
+        intersection.strokeWidth = style.strokeWidth * (offset === 0 ? 1 : 0.6);
+        intersection.dashArray = offset === 0 ? [] : [4, 4];
+      } else {
+        intersection.remove();
+      }
+    }
+
+    // Label
+    if (idx === 0) {
+      const label = new paper.PointText(new paper.Point(bounds.right + 8, bounds.top + 12 + idx * 14));
+      label.content = `${da.angle}°`;
+      label.fillColor = color;
+      label.fontSize = 9;
+      label.fontWeight = 'bold';
+    }
+  });
+}
+
+/**
+ * Underlying Circles
+ * Finds circular arcs in the SVG by fitting circles through path curvature.
+ * Draws the full underlying circles that the logo curves sit on.
+ * Reference: Logo Modernism - Jens Müller (construction grids)
+ */
+export function renderUnderlyingCircles(
+  bounds: paper.Rectangle,
+  style: StyleConfig,
+  context?: RenderContext
+) {
+  if (!context?.useRealData || !context?.actualPaths || context.actualPaths.length === 0) return;
+
+  const color = hexToColor(style.color, style.opacity);
+  const dimColor = hexToColor(style.color, style.opacity * 0.5);
+  const paths = context.actualPaths;
+
+  interface CircleCandidate {
+    cx: number; cy: number; r: number; score: number;
+  }
+
+  const candidates: CircleCandidate[] = [];
+
+  for (const path of paths) {
+    if (!path.curves || path.curves.length < 1) continue;
+
+    for (const curve of path.curves) {
+      if (!curve.hasHandles()) continue;
+
+      // Sample 3 points on the curve
+      try {
+        const p1 = curve.getPointAt(0);
+        const p2 = curve.getPointAt(curve.length * 0.5);
+        const p3 = curve.getPointAt(curve.length);
+        if (!p1 || !p2 || !p3) continue;
+
+        // Circumscribed circle from 3 points
+        const ax = p1.x, ay = p1.y;
+        const bx = p2.x, by = p2.y;
+        const cx2 = p3.x, cy2 = p3.y;
+
+        const D = 2 * (ax * (by - cy2) + bx * (cy2 - ay) + cx2 * (ay - by));
+        if (Math.abs(D) < 0.001) continue;
+
+        const ux = ((ax * ax + ay * ay) * (by - cy2) + (bx * bx + by * by) * (cy2 - ay) + (cx2 * cx2 + cy2 * cy2) * (ay - by)) / D;
+        const uy = ((ax * ax + ay * ay) * (cx2 - bx) + (bx * bx + by * by) * (ax - cx2) + (cx2 * cx2 + cy2 * cy2) * (bx - ax)) / D;
+        const r = Math.sqrt((ax - ux) * (ax - ux) + (ay - uy) * (ay - uy));
+
+        // Filter: reasonable radius (not too tiny, not astronomically large)
+        const maxR = Math.max(bounds.width, bounds.height) * 2;
+        const minR = Math.min(bounds.width, bounds.height) * 0.05;
+        if (r < minR || r > maxR) continue;
+
+        // Check if this circle is near an existing candidate (dedup)
+        const exists = candidates.some(c =>
+          Math.abs(c.cx - ux) < r * 0.15 &&
+          Math.abs(c.cy - uy) < r * 0.15 &&
+          Math.abs(c.r - r) < r * 0.15
+        );
+        if (exists) {
+          const match = candidates.find(c =>
+            Math.abs(c.cx - ux) < r * 0.15 &&
+            Math.abs(c.cy - uy) < r * 0.15 &&
+            Math.abs(c.r - r) < r * 0.15
+          );
+          if (match) match.score++;
+          continue;
+        }
+
+        candidates.push({ cx: ux, cy: uy, r, score: 1 });
+      } catch { /* skip invalid curves */ }
+    }
+  }
+
+  // Sort by score (most curves match this circle) and take top 6
+  candidates.sort((a, b) => b.score - a.score);
+  const topCircles = candidates.slice(0, 6);
+
+  topCircles.forEach((c, idx) => {
+    const circle = new paper.Path.Circle(new paper.Point(c.cx, c.cy), c.r);
+    circle.strokeColor = idx < 2 ? color : dimColor;
+    circle.strokeWidth = style.strokeWidth * (idx < 2 ? 1 : 0.7);
+    circle.fillColor = null;
+    circle.dashArray = [6, 3];
+
+    // Draw center crosshair
+    const crossSize = Math.min(c.r * 0.15, 6);
+    const hCross = new paper.Path.Line(
+      new paper.Point(c.cx - crossSize, c.cy),
+      new paper.Point(c.cx + crossSize, c.cy)
+    );
+    hCross.strokeColor = idx < 2 ? color : dimColor;
+    hCross.strokeWidth = style.strokeWidth * 0.5;
+    const vCross = new paper.Path.Line(
+      new paper.Point(c.cx, c.cy - crossSize),
+      new paper.Point(c.cx, c.cy + crossSize)
+    );
+    vCross.strokeColor = idx < 2 ? color : dimColor;
+    vCross.strokeWidth = style.strokeWidth * 0.5;
+  });
+}
+
+/**
+ * Dominant Diagonals
+ * Traces the primary diagonal axes that run through the SVG paths.
+ * Extends short path segments into full construction lines to reveal
+ * the underlying diagonal grid.
+ * Reference: Grid Systems in Graphic Design - Josef Müller-Brockmann
+ */
+export function renderDominantDiagonals(
+  bounds: paper.Rectangle,
+  style: StyleConfig,
+  context?: RenderContext
+) {
+  if (!context?.useRealData || !context?.actualPaths || context.actualPaths.length === 0) return;
+
+  const color = hexToColor(style.color, style.opacity);
+  const dimColor = hexToColor(style.color, style.opacity * 0.4);
+  const paths = context.actualPaths;
+  const diag = Math.sqrt(bounds.width * bounds.width + bounds.height * bounds.height);
+
+  interface LineCandidate {
+    x: number; y: number; angle: number; score: number;
+  }
+
+  const lineCandidates: LineCandidate[] = [];
+
+  for (const path of paths) {
+    if (!path.segments || path.segments.length < 2) continue;
+
+    for (let i = 0; i < path.segments.length - 1; i++) {
+      const p1 = path.segments[i].point;
+      const p2 = path.segments[i + 1].point;
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len < Math.min(bounds.width, bounds.height) * 0.03) continue;
+
+      let angle = Math.atan2(dy, dx) * 180 / Math.PI;
+      // Normalize to 0-180
+      if (angle < 0) angle += 180;
+
+      // Skip near-horizontal and near-vertical (already covered by center lines)
+      if (angle < 10 || angle > 170 || (angle > 80 && angle < 100)) continue;
+
+      const mx = (p1.x + p2.x) / 2;
+      const my = (p1.y + p2.y) / 2;
+
+      // Dedup with existing
+      const match = lineCandidates.find(c =>
+        Math.abs(c.angle - angle) < 5 &&
+        Math.abs(c.x - mx) < bounds.width * 0.1 &&
+        Math.abs(c.y - my) < bounds.height * 0.1
+      );
+      if (match) {
+        match.score++;
+        continue;
+      }
+
+      lineCandidates.push({ x: mx, y: my, angle, score: 1 });
+    }
+  }
+
+  lineCandidates.sort((a, b) => b.score - a.score);
+  const topLines = lineCandidates.slice(0, 6);
+
+  topLines.forEach((l, idx) => {
+    const rad = l.angle * Math.PI / 180;
+    const dx = Math.cos(rad);
+    const dy = Math.sin(rad);
+
+    const line = new paper.Path.Line(
+      new paper.Point(l.x - dx * diag, l.y - dy * diag),
+      new paper.Point(l.x + dx * diag, l.y + dy * diag)
+    );
+
+    // Clip to reasonably extended bounds
+    const ext = 15;
+    const clipRect = new paper.Rectangle(
+      bounds.left - ext, bounds.top - ext,
+      bounds.width + ext * 2, bounds.height + ext * 2
+    );
+    const clipPath = new paper.Path.Rectangle(clipRect);
+    const clipped = line.intersect(clipPath);
+    line.remove();
+    clipPath.remove();
+
+    if (clipped && clipped.length > 0) {
+      clipped.strokeColor = idx < 2 ? color : dimColor;
+      clipped.strokeWidth = style.strokeWidth * (idx < 2 ? 1 : 0.6);
+      clipped.dashArray = [8, 4];
+
+      // Angle label
+      if (idx < 3) {
+        const labelPt = new paper.Point(bounds.right + 8, bounds.bottom - 8 - idx * 14);
+        const label = new paper.PointText(labelPt);
+        label.content = `${Math.round(l.angle)}°`;
+        label.fillColor = idx < 2 ? color : dimColor;
+        label.fontSize = 8;
+      }
+    } else {
+      clipped.remove();
+    }
+  });
+}
+
+/**
+ * Curvature Comb
+ * Draws curvature combs along bezier curves to visualize smoothness.
+ * Longer "teeth" = higher curvature. Helps verify curve quality.
+ * Reference: The Anatomy of Type - Stephen Coles / type design curvature analysis
+ */
+export function renderCurvatureComb(
+  bounds: paper.Rectangle,
+  style: StyleConfig,
+  context?: RenderContext
+) {
+  if (!context?.useRealData || !context?.actualPaths || context.actualPaths.length === 0) return;
+
+  const color = hexToColor(style.color, style.opacity);
+  const paths = context.actualPaths;
+  const maxTeeth = Math.min(bounds.width, bounds.height) * 0.12;
+
+  for (const path of paths) {
+    if (!path.length || path.length < 5) continue;
+
+    const steps = Math.max(20, Math.floor(path.length / 2));
+    for (let i = 0; i <= steps; i++) {
+      const offset = (i / steps) * path.length;
+      try {
+        const point = path.getPointAt(offset);
+        const normal = path.getNormalAt(offset);
+        const curvature = path.getCurvatureAt(offset);
+        if (!point || !normal || curvature === null || curvature === undefined) continue;
+
+        // Scale curvature to visual length
+        const toothLen = Math.min(Math.abs(curvature) * 800, maxTeeth);
+        if (toothLen < 1) continue;
+
+        const tooth = new paper.Path.Line(
+          point,
+          new paper.Point(
+            point.x + normal.x * toothLen,
+            point.y + normal.y * toothLen
+          )
+        );
+        tooth.strokeColor = color;
+        tooth.strokeWidth = style.strokeWidth * 0.4;
+      } catch { /* skip invalid offsets */ }
+    }
+  }
+}
+
+/**
+ * Skeleton Centerline
+ * Approximates the centerline/skeleton of the SVG shapes by connecting
+ * midpoints of opposite path segments. For thick strokes and letterforms,
+ * this reveals the underlying "spine" of the design.
+ * Reference: Calligraphy & Lettering - stroke skeleton analysis
+ */
+export function renderSkeletonCenterline(
+  bounds: paper.Rectangle,
+  style: StyleConfig,
+  context?: RenderContext
+) {
+  if (!context?.useRealData || !context?.actualPaths || context.actualPaths.length === 0) return;
+
+  const color = hexToColor(style.color, style.opacity);
+  const paths = context.actualPaths;
+
+  for (const path of paths) {
+    if (!path.length || path.length < 5 || !path.closed) continue;
+
+    // Sample points around the closed path and find pairs of opposite points
+    const totalLen = path.length;
+    const numSamples = Math.max(20, Math.floor(totalLen / 4));
+    const halfLen = totalLen / 2;
+    const midpoints: paper.Point[] = [];
+
+    for (let i = 0; i < numSamples; i++) {
+      const offset1 = (i / numSamples) * totalLen;
+      try {
+        const p1 = path.getPointAt(offset1);
+        if (!p1) continue;
+
+        // Find the nearest point on the path to the "opposite side"
+        const offset2 = (offset1 + halfLen) % totalLen;
+        const p2 = path.getPointAt(offset2);
+        if (!p2) continue;
+
+        const mid = new paper.Point((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+        midpoints.push(mid);
+      } catch { /* skip */ }
+    }
+
+    if (midpoints.length < 3) continue;
+
+    // Draw smooth path through midpoints
+    const skeleton = new paper.Path();
+    skeleton.strokeColor = color;
+    skeleton.strokeWidth = style.strokeWidth;
+    skeleton.fillColor = null;
+    skeleton.dashArray = [3, 2];
+
+    midpoints.forEach((pt) => {
+      skeleton.add(new paper.Segment(pt));
+    });
+    skeleton.smooth({ type: 'catmull-rom', factor: 0.5 });
+  }
+}
+
+/**
+ * Construction Grid
+ * Detects the implicit grid that the logo is built on by finding
+ * recurring x/y coordinates in path anchor points.
+ * Reference: Grid Systems in Graphic Design - Josef Müller-Brockmann
+ */
+export function renderConstructionGrid(
+  bounds: paper.Rectangle,
+  style: StyleConfig,
+  context?: RenderContext
+) {
+  if (!context?.useRealData || !context?.actualPaths || context.actualPaths.length === 0) return;
+
+  const color = hexToColor(style.color, style.opacity);
+  const dimColor = hexToColor(style.color, style.opacity * 0.3);
+  const paths = context.actualPaths;
+
+  // Collect all anchor point coordinates
+  const xCoords: number[] = [];
+  const yCoords: number[] = [];
+
+  for (const path of paths) {
+    if (!path.segments) continue;
+    for (const seg of path.segments) {
+      xCoords.push(seg.point.x);
+      yCoords.push(seg.point.y);
+    }
+  }
+
+  if (xCoords.length < 3) return;
+
+  // Cluster nearby coordinates (within tolerance)
+  const tolerance = Math.min(bounds.width, bounds.height) * 0.015;
+
+  function cluster(coords: number[]): { value: number; count: number }[] {
+    const sorted = [...coords].sort((a, b) => a - b);
+    const clusters: { value: number; count: number; sum: number }[] = [];
+    for (const v of sorted) {
+      const match = clusters.find(c => Math.abs(c.sum / c.count - v) < tolerance);
+      if (match) {
+        match.sum += v;
+        match.count++;
+      } else {
+        clusters.push({ value: v, count: 1, sum: v });
+      }
+    }
+    return clusters
+      .filter(c => c.count >= 2)
+      .map(c => ({ value: c.sum / c.count, count: c.count }))
+      .sort((a, b) => b.count - a.count);
+  }
+
+  const xClusters = cluster(xCoords);
+  const yClusters = cluster(yCoords);
+
+  // Draw vertical lines at dominant X positions
+  const ext = 15;
+  xClusters.slice(0, 12).forEach((c, idx) => {
+    const line = new paper.Path.Line(
+      new paper.Point(c.value, bounds.top - ext),
+      new paper.Point(c.value, bounds.bottom + ext)
+    );
+    const isPrimary = c.count >= 3;
+    line.strokeColor = isPrimary ? color : dimColor;
+    line.strokeWidth = style.strokeWidth * (isPrimary ? 0.8 : 0.5);
+    line.dashArray = isPrimary ? [6, 3] : [2, 3];
+  });
+
+  // Draw horizontal lines at dominant Y positions
+  yClusters.slice(0, 12).forEach((c, idx) => {
+    const line = new paper.Path.Line(
+      new paper.Point(bounds.left - ext, c.value),
+      new paper.Point(bounds.right + ext, c.value)
+    );
+    const isPrimary = c.count >= 3;
+    line.strokeColor = isPrimary ? color : dimColor;
+    line.strokeWidth = style.strokeWidth * (isPrimary ? 0.8 : 0.5);
+    line.dashArray = isPrimary ? [6, 3] : [2, 3];
+  });
+
+  // Label grid count
+  const total = xClusters.length + yClusters.length;
+  if (total > 0) {
+    const label = new paper.PointText(new paper.Point(bounds.left - 5, bounds.top - 8));
+    label.content = `${xClusters.length}×${yClusters.length} grid`;
+    label.fillColor = color;
+    label.fontSize = 8;
+    label.justification = 'left';
+  }
+}
+
+/**
+ * Path Direction Arrows
+ * Shows the direction of each SVG path with small arrows along the path.
+ * Useful for debugging winding rules and understanding path construction.
+ * Reference: SVG specification / vector path construction theory
+ */
+export function renderPathDirectionArrows(
+  bounds: paper.Rectangle,
+  style: StyleConfig,
+  context?: RenderContext
+) {
+  if (!context?.useRealData || !context?.actualPaths || context.actualPaths.length === 0) return;
+
+  const color = hexToColor(style.color, style.opacity);
+  const paths = context.actualPaths;
+  const arrowSize = Math.min(bounds.width, bounds.height) * 0.02;
+
+  for (const path of paths) {
+    if (!path.length || path.length < 5) continue;
+
+    // Place arrows at 25%, 50%, 75% of path
+    const positions = [0.25, 0.5, 0.75];
+
+    for (const pos of positions) {
+      const offset = pos * path.length;
+      try {
+        const point = path.getPointAt(offset);
+        const tangent = path.getTangentAt(offset);
+        if (!point || !tangent) continue;
+
+        const angle = Math.atan2(tangent.y, tangent.x);
+        const size = Math.max(arrowSize, 3);
+
+        // Arrow head triangle
+        const tip = new paper.Point(
+          point.x + Math.cos(angle) * size,
+          point.y + Math.sin(angle) * size
+        );
+        const left = new paper.Point(
+          point.x + Math.cos(angle + 2.5) * size * 0.7,
+          point.y + Math.sin(angle + 2.5) * size * 0.7
+        );
+        const right = new paper.Point(
+          point.x + Math.cos(angle - 2.5) * size * 0.7,
+          point.y + Math.sin(angle - 2.5) * size * 0.7
+        );
+
+        const arrow = new paper.Path([
+          new paper.Segment(tip),
+          new paper.Segment(left),
+          new paper.Segment(right),
+        ]);
+        arrow.closed = true;
+        arrow.fillColor = color;
+        arrow.strokeColor = null;
+      } catch { /* skip */ }
+    }
+  }
+}
+
+/**
+ * Tangent Intersections
+ * Extends tangent lines from curve endpoints until they intersect,
+ * revealing the implicit construction points of the logo.
+ * Reference: Bezier curve construction / Industrial Design drafting
+ */
+export function renderTangentIntersections(
+  bounds: paper.Rectangle,
+  style: StyleConfig,
+  context?: RenderContext
+) {
+  if (!context?.useRealData || !context?.actualPaths || context.actualPaths.length === 0) return;
+
+  const color = hexToColor(style.color, style.opacity);
+  const dimColor = hexToColor(style.color, style.opacity * 0.35);
+  const paths = context.actualPaths;
+  const diag = Math.sqrt(bounds.width * bounds.width + bounds.height * bounds.height);
+
+  const intersectionPoints: paper.Point[] = [];
+
+  for (const path of paths) {
+    if (!path.curves || path.curves.length < 1) continue;
+
+    for (let i = 0; i < path.curves.length; i++) {
+      const curve = path.curves[i];
+      if (!curve.hasHandles()) continue;
+
+      try {
+        // Get tangent at start and end of curve
+        const t1Point = curve.getPointAt(0);
+        const t1Dir = curve.getTangentAt(0);
+        const t2Point = curve.getPointAt(curve.length);
+        const t2Dir = curve.getTangentAt(curve.length);
+        if (!t1Point || !t1Dir || !t2Point || !t2Dir) continue;
+
+        // Find intersection of the two tangent lines
+        // Line 1: t1Point + s * t1Dir
+        // Line 2: t2Point + t * t2Dir
+        const cross = t1Dir.x * t2Dir.y - t1Dir.y * t2Dir.x;
+        if (Math.abs(cross) < 0.001) continue; // parallel
+
+        const dx = t2Point.x - t1Point.x;
+        const dy = t2Point.y - t1Point.y;
+        const s = (dx * t2Dir.y - dy * t2Dir.x) / cross;
+
+        const ix = t1Point.x + s * t1Dir.x;
+        const iy = t1Point.y + s * t1Dir.y;
+
+        // Check if intersection is in reasonable range
+        const dist = Math.sqrt((ix - bounds.center.x) ** 2 + (iy - bounds.center.y) ** 2);
+        if (dist > diag) continue;
+
+        intersectionPoints.push(new paper.Point(ix, iy));
+
+        // Draw tangent lines to intersection
+        const line1 = new paper.Path.Line(t1Point, new paper.Point(ix, iy));
+        line1.strokeColor = dimColor;
+        line1.strokeWidth = style.strokeWidth * 0.5;
+        line1.dashArray = [3, 3];
+
+        const line2 = new paper.Path.Line(t2Point, new paper.Point(ix, iy));
+        line2.strokeColor = dimColor;
+        line2.strokeWidth = style.strokeWidth * 0.5;
+        line2.dashArray = [3, 3];
+      } catch { /* skip */ }
+    }
+  }
+
+  // Draw diamonds at intersection points (construction points)
+  const markerSize = Math.max(3, Math.min(bounds.width, bounds.height) * 0.012);
+  intersectionPoints.slice(0, 20).forEach(pt => {
+    const diamond = new paper.Path([
+      new paper.Segment(new paper.Point(pt.x, pt.y - markerSize)),
+      new paper.Segment(new paper.Point(pt.x + markerSize, pt.y)),
+      new paper.Segment(new paper.Point(pt.x, pt.y + markerSize)),
+      new paper.Segment(new paper.Point(pt.x - markerSize, pt.y)),
+    ]);
+    diamond.closed = true;
+    diamond.fillColor = color;
+    diamond.strokeColor = null;
+  });
+}

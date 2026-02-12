@@ -26,6 +26,8 @@ const allOff: GeometryOptions = {
   pixelGrid: false, opticalCenter: false, contrastGuide: false,
   dynamicBaseline: false, fibonacciOverlay: false, kenBurnsSafe: false, componentRatioLabels: false,
   vesicaPiscis: false, ruleOfOdds: false, visualWeightMap: false, anchoringPoints: false, harmonicDivisions: false,
+  parallelFlowLines: false, underlyingCircles: false, dominantDiagonals: false, curvatureComb: false,
+  skeletonCenterline: false, constructionGrid: false, pathDirectionArrows: false, tangentIntersections: false,
 };
 
 const defaultStyle = (color: string, opacity: number, strokeWidth: number) => ({ color, opacity, strokeWidth });
@@ -61,6 +63,14 @@ const defaultStyles: GeometryStyles = {
   visualWeightMap:        defaultStyle('#cc8844', 0.3, 1),
   anchoringPoints:        defaultStyle('#44ddbb', 0.6, 1.5),
   harmonicDivisions:      defaultStyle('#aa66dd', 0.4, 0.8),
+  parallelFlowLines:     defaultStyle('#55aaee', 0.45, 0.8),
+  underlyingCircles:     defaultStyle('#ee6688', 0.4, 1),
+  dominantDiagonals:     defaultStyle('#dd7733', 0.45, 0.8),
+  curvatureComb:         defaultStyle('#77cc55', 0.5, 0.5),
+  skeletonCenterline:    defaultStyle('#cc55aa', 0.5, 1.2),
+  constructionGrid:      defaultStyle('#7799dd', 0.35, 0.6),
+  pathDirectionArrows:   defaultStyle('#ee8844', 0.55, 1),
+  tangentIntersections:  defaultStyle('#aa55cc', 0.45, 0.8),
 };
 
 export function getBuiltinPresets(): GeometryPreset[] {
@@ -105,15 +115,16 @@ export function getBuiltinPresets(): GeometryPreset[] {
     {
       id: 'builtin-structural',
       name: 'Anatomia Estrutural',
-      description: 'Curvas bezier, tangentes e construção geométrica do logo',
+      description: 'Curvas bezier, tangentes, curvatura e construção geométrica do logo',
       isBuiltin: true,
-      geometryOptions: { ...allOff, bezierHandles: true, tangentLines: true, circles: true, angleMeasurements: true },
+      geometryOptions: { ...allOff, bezierHandles: true, tangentLines: true, curvatureComb: true, tangentIntersections: true, underlyingCircles: true },
       geometryStyles: {
         ...defaultStyles,
         bezierHandles: defaultStyle('#ff5577', 0.6, 1),
         tangentLines: defaultStyle('#66ccdd', 0.4, 0.5),
-        circles: defaultStyle('#33b380', 0.4, 1),
-        angleMeasurements: defaultStyle('#ffaa33', 0.5, 0.8),
+        curvatureComb: defaultStyle('#77cc55', 0.5, 0.5),
+        tangentIntersections: defaultStyle('#aa55cc', 0.45, 0.8),
+        underlyingCircles: defaultStyle('#ee6688', 0.4, 1),
       },
       clearspaceValue: 0, clearspaceUnit: 'logomark', showGrid: false, gridSubdivisions: 8,
       createdAt: 0,
@@ -143,13 +154,14 @@ export function getBuiltinPresets(): GeometryPreset[] {
       name: 'Grid & Espaçamento',
       description: 'Grids, guias de alinhamento e espaçamento entre componentes',
       isBuiltin: true,
-      geometryOptions: { ...allOff, isometricGrid: true, alignmentGuides: true, spacingGuides: true, anchoringPoints: true },
+      geometryOptions: { ...allOff, isometricGrid: true, alignmentGuides: true, spacingGuides: true, anchoringPoints: true, constructionGrid: true },
       geometryStyles: {
         ...defaultStyles,
         isometricGrid: defaultStyle('#5eaaf7', 0.2, 0.5),
         alignmentGuides: defaultStyle('#ff7744', 0.4, 0.8),
         spacingGuides: defaultStyle('#33ccff', 0.45, 1),
         anchoringPoints: defaultStyle('#44ddbb', 0.5, 1.5),
+        constructionGrid: defaultStyle('#7799dd', 0.3, 0.6),
       },
       clearspaceValue: 1, clearspaceUnit: 'logomark', showGrid: true, gridSubdivisions: 8,
       createdAt: 0,
@@ -242,6 +254,8 @@ export function getBuiltinPresets(): GeometryPreset[] {
         pixelGrid: true, opticalCenter: true, contrastGuide: true,
         dynamicBaseline: true, fibonacciOverlay: true, kenBurnsSafe: true, componentRatioLabels: true,
         vesicaPiscis: true, ruleOfOdds: true, visualWeightMap: true, anchoringPoints: true, harmonicDivisions: true,
+        parallelFlowLines: true, underlyingCircles: true, dominantDiagonals: true, curvatureComb: true,
+        skeletonCenterline: true, constructionGrid: true, pathDirectionArrows: true, tangentIntersections: true,
       },
       geometryStyles: { ...defaultStyles },
       clearspaceValue: 1, clearspaceUnit: 'logomark', showGrid: true, gridSubdivisions: 8,
