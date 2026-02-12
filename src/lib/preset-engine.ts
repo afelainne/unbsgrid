@@ -25,6 +25,7 @@ const allOff: GeometryOptions = {
   rootRectangles: false, modularScale: false, alignmentGuides: false, safeZone: false,
   pixelGrid: false, opticalCenter: false, contrastGuide: false,
   dynamicBaseline: false, fibonacciOverlay: false, kenBurnsSafe: false, componentRatioLabels: false,
+  vesicaPiscis: false, ruleOfOdds: false, visualWeightMap: false, anchoringPoints: false, harmonicDivisions: false,
 };
 
 const defaultStyle = (color: string, opacity: number, strokeWidth: number) => ({ color, opacity, strokeWidth });
@@ -55,6 +56,11 @@ const defaultStyles: GeometryStyles = {
   fibonacciOverlay:       defaultStyle('#e6a833', 0.45, 1),
   kenBurnsSafe:           defaultStyle('#ff6644', 0.35, 1.2),
   componentRatioLabels:   defaultStyle('#88bbff', 0.7, 1),
+  vesicaPiscis:           defaultStyle('#bb77cc', 0.45, 1),
+  ruleOfOdds:             defaultStyle('#77aacc', 0.35, 0.8),
+  visualWeightMap:        defaultStyle('#cc8844', 0.3, 1),
+  anchoringPoints:        defaultStyle('#44ddbb', 0.6, 1.5),
+  harmonicDivisions:      defaultStyle('#aa66dd', 0.4, 0.8),
 };
 
 export function getBuiltinPresets(): GeometryPreset[] {
@@ -92,6 +98,7 @@ export function getBuiltinPresets(): GeometryPreset[] {
         rootRectangles: true, modularScale: true, alignmentGuides: true, safeZone: true,
         pixelGrid: true, opticalCenter: true, contrastGuide: true,
         dynamicBaseline: true, fibonacciOverlay: true, kenBurnsSafe: true, componentRatioLabels: true,
+        vesicaPiscis: true, ruleOfOdds: true, visualWeightMap: true, anchoringPoints: true, harmonicDivisions: true,
       },
       geometryStyles: { ...defaultStyles },
       clearspaceValue: 1, clearspaceUnit: 'logomark', showGrid: true, gridSubdivisions: 8,
@@ -99,12 +106,52 @@ export function getBuiltinPresets(): GeometryPreset[] {
     },
     {
       id: 'builtin-technical',
-      name: 'Construção Técnica',
+      name: 'Técnica',
       description: 'Bezier handles, isometric grid e análise estrutural',
       isBuiltin: true,
       geometryOptions: { ...allOff, bezierHandles: true, isometricGrid: true, centerLines: true, boundingRects: true },
       geometryStyles: { ...defaultStyles },
       clearspaceValue: 1, clearspaceUnit: 'logomark', showGrid: true, gridSubdivisions: 8,
+      createdAt: 0,
+    },
+    {
+      id: 'builtin-symmetry',
+      name: 'Simetria',
+      description: 'Eixos de simetria, center lines e guias de alinhamento',
+      isBuiltin: true,
+      geometryOptions: { ...allOff, symmetryAxes: true, centerLines: true, alignmentGuides: true, anchoringPoints: true },
+      geometryStyles: { ...defaultStyles },
+      clearspaceValue: 1, clearspaceUnit: 'logomark', showGrid: false, gridSubdivisions: 8,
+      createdAt: 0,
+    },
+    {
+      id: 'builtin-fibonacci',
+      name: 'Fibonacci',
+      description: 'Fibonacci overlay, golden ratio e golden spiral',
+      isBuiltin: true,
+      geometryOptions: { ...allOff, fibonacciOverlay: true, goldenRatio: true, goldenSpiral: true, vesicaPiscis: true },
+      geometryStyles: { ...defaultStyles },
+      clearspaceValue: 0, clearspaceUnit: 'logomark', showGrid: false, gridSubdivisions: 8,
+      createdAt: 0,
+    },
+    {
+      id: 'builtin-broadcast',
+      name: 'Broadcast',
+      description: 'Ken Burns safe area, safe zone e bounding rects',
+      isBuiltin: true,
+      geometryOptions: { ...allOff, kenBurnsSafe: true, safeZone: true, boundingRects: true },
+      geometryStyles: { ...defaultStyles },
+      clearspaceValue: 1, clearspaceUnit: 'logomark', showGrid: false, gridSubdivisions: 8,
+      createdAt: 0,
+    },
+    {
+      id: 'builtin-typography',
+      name: 'Tipografia',
+      description: 'Proporções tipográficas, baseline grid e spacing guides',
+      isBuiltin: true,
+      geometryOptions: { ...allOff, typographicProportions: true, dynamicBaseline: true, spacingGuides: true, harmonicDivisions: true },
+      geometryStyles: { ...defaultStyles },
+      clearspaceValue: 0, clearspaceUnit: 'logomark', showGrid: false, gridSubdivisions: 8,
       createdAt: 0,
     },
   ];

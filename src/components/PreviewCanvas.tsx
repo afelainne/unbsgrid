@@ -11,6 +11,7 @@ import {
   renderRootRectangles, renderModularScale, renderAlignmentGuides, renderSafeZone,
   renderPixelGrid, renderOpticalCenter, renderContrastGuide,
   renderDynamicBaseline, renderFibonacciOverlay, renderKenBurnsSafe, renderComponentRatioLabels,
+  renderVesicaPiscis, renderRuleOfOdds, renderVisualWeightMap, renderAnchoringPoints, renderHarmonicDivisions,
 } from '@/components/geometry-renderers';
 import { Button } from '@/components/ui/button';
 
@@ -179,6 +180,11 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     if (geometryOptions.fibonacciOverlay) renderFibonacciOverlay(bounds, s.fibonacciOverlay);
     if (geometryOptions.kenBurnsSafe) renderKenBurnsSafe(bounds, s.kenBurnsSafe);
     if (geometryOptions.componentRatioLabels) renderComponentRatioLabels(bounds, scaledCompBounds, s.componentRatioLabels);
+    if (geometryOptions.vesicaPiscis) renderVesicaPiscis(bounds, s.vesicaPiscis);
+    if (geometryOptions.ruleOfOdds) renderRuleOfOdds(bounds, s.ruleOfOdds);
+    if (geometryOptions.visualWeightMap) renderVisualWeightMap(bounds, scaledCompBounds, s.visualWeightMap);
+    if (geometryOptions.anchoringPoints) renderAnchoringPoints(bounds, s.anchoringPoints);
+    if (geometryOptions.harmonicDivisions) renderHarmonicDivisions(bounds, s.harmonicDivisions);
 
     (paper.view as any).draw();
     onProjectReady?.(paper.project);

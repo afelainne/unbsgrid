@@ -11,14 +11,16 @@ interface Props {
   onSaveClick: () => void;
   onLoadClick: () => void;
   onRevert: () => void;
+  builtinPresets?: GeometryPreset[];
+  onApplyPreset?: (preset: GeometryPreset) => void;
 }
 
-const PresetManager: React.FC<Props> = ({ activePreset, isModified, onSaveClick, onLoadClick, onRevert }) => (
+const PresetManager: React.FC<Props> = ({ activePreset, isModified, onSaveClick, onLoadClick, onRevert, builtinPresets = [], onApplyPreset }) => (
   <section>
     <div className="flex items-center gap-1.5 mb-3">
-      <Bookmark className="h-3.5 w-3.5 text-primary" />
+      <Bookmark className="h-3.5 w-3.5 text-muted-foreground" />
       <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">Presets</Label>
-      <InfoTooltip content="Salve e carregue configurações de geometria para reutilização." />
+      <InfoTooltip content="Salve e carregue configurações de geometria para reutilização. Use os presets rápidos abaixo ou crie os seus." />
     </div>
     {activePreset && (
       <div className="mb-2 flex items-center gap-1.5">
@@ -37,6 +39,27 @@ const PresetManager: React.FC<Props> = ({ activePreset, isModified, onSaveClick,
         <Save className="h-3 w-3 mr-1" /> Salvar
       </Button>
     </div>
+
+    {/* Inline builtin preset chips */}
+    {builtinPresets.length > 0 && (
+      <div className="flex flex-wrap gap-1.5 mt-2.5">
+        {builtinPresets.map(preset => (
+          <button
+            key={preset.id}
+            onClick={() => onApplyPreset?.(preset)}
+            className={`px-2 py-0.5 rounded-full text-[9px] font-medium border transition-all ${
+              activePreset?.id === preset.id
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-sidebar border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+            }`}
+            title={preset.description || preset.name}
+          >
+            {preset.name}
+          </button>
+        ))}
+      </div>
+    )}
+
     {isModified && activePreset && (
       <Button size="sm" variant="ghost" className="w-full h-6 text-[9px] mt-1.5 text-muted-foreground" onClick={onRevert}>
         <RotateCcw className="h-2.5 w-2.5 mr-1" /> Reverter para "{activePreset.name}"
