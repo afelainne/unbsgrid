@@ -430,8 +430,7 @@ const Index = () => {
           <div className="flex items-center gap-2 mb-1">
             <Logo />
             <h1 className="text-xs font-bold tracking-wide text-foreground"></h1>
-          </div>
-          <p className="text-[9px] text-muted-foreground mt-0.5">Brand Grid & Construction Generator</p>
+           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
