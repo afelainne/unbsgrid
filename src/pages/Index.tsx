@@ -235,6 +235,8 @@ const Index = () => {
   const [useRealDataInterpretation, setUseRealDataInterpretation] = useState(true);
   const [svgOutlineMode, setSvgOutlineMode] = useState(false);
   const [svgOutlineWidth, setSvgOutlineWidth] = useState(1);
+  const [svgOutlineDash, setSvgOutlineDash] = useState<number[]>([]);
+  const [svgOutlineLineCap, setSvgOutlineLineCap] = useState<'butt' | 'round' | 'square'>('butt');
   const [geometryOptions, setGeometryOptions] = useState<GeometryOptions>({
     boundingRects: false,
     circles: false,
@@ -418,6 +420,56 @@ const Index = () => {
     a.click();
   }, []);
 
+  const handleExportOutlineSVG = useCallback(() => {
+    if (!parsedSVG) return;
+    const tempCanvas = document.createElement("canvas");
+    tempCanvas.width = 800;
+    tempCanvas.height = 600;
+    const tempScope = new paper.PaperScope();
+    tempScope.setup(tempCanvas);
+    const item = tempScope.project.importSVG(parsedSVG.originalSVG, { expandShapes: true });
+
+    if (svgColorOverride) {
+      const overrideColor = new tempScope.Color(svgColorOverride);
+      const applyColor = (it: paper.Item) => {
+        if (it instanceof tempScope.Path || it instanceof tempScope.CompoundPath) {
+          if ((it as any).fillColor) (it as any).fillColor = overrideColor;
+          if ((it as any).strokeColor) (it as any).strokeColor = overrideColor;
+        }
+        if ((it as any).children) {
+          (it as any).children.forEach((child: paper.Item) => applyColor(child));
+        }
+      };
+      applyColor(item);
+    }
+
+    const applyOutline = (it: paper.Item) => {
+      if (it instanceof tempScope.Path || it instanceof tempScope.CompoundPath) {
+        const pathItem = it as any;
+        const color = pathItem.fillColor || pathItem.strokeColor;
+        if (color) pathItem.strokeColor = color;
+        pathItem.fillColor = null;
+        pathItem.strokeWidth = svgOutlineWidth;
+        if (svgOutlineDash.length > 0) pathItem.dashArray = svgOutlineDash;
+        pathItem.strokeCap = svgOutlineLineCap;
+      }
+      if ((it as any).children) {
+        (it as any).children.forEach((child: paper.Item) => applyOutline(child));
+      }
+    };
+    applyOutline(item);
+
+    const svgString = tempScope.project.exportSVG({ asString: true }) as string;
+    tempScope.project.remove();
+    const blob = new Blob([svgString], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "unbsgrid-outline.svg";
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [parsedSVG, svgColorOverride, svgOutlineWidth, svgOutlineDash, svgOutlineLineCap]);
+
   const toggleGeometry = (key: keyof GeometryOptions) => {
     setGeometryOptions((prev) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -425,6 +477,14 @@ const Index = () => {
   const updateStyle = (key: keyof GeometryOptions, style: GeometryStyle) => {
     setGeometryStyles((prev) => ({ ...prev, [key]: style }));
   };
+
+  const handleResetSvgModifications = useCallback(() => {
+    setSvgColorOverride(null);
+    setSvgOutlineMode(false);
+    setSvgOutlineWidth(1);
+    setSvgOutlineDash([]);
+    setSvgOutlineLineCap('butt');
+  }, []);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
@@ -557,23 +617,77 @@ const Index = () => {
               </Label>
             </div>
             {svgOutlineMode && (
-              <div>
-                <Label className="text-[10px] text-muted-foreground mb-1 block">
-                  Espessura: {svgOutlineWidth.toFixed(1)}px
-                </Label>
-                <Slider
-                  min={1}
-                  max={50}
-                  step={1}
-                  value={[svgOutlineWidth * 10]}
-                  onValueChange={(v) => setSvgOutlineWidth(v[0] / 10)}
-                  className="flex-1"
-                />
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-[10px] text-muted-foreground mb-1 block">
+                    Espessura: {svgOutlineWidth.toFixed(1)}px
+                  </Label>
+                  <Slider
+                    min={1}
+                    max={50}
+                    step={1}
+                    value={[svgOutlineWidth * 10]}
+                    onValueChange={(v) => setSvgOutlineWidth(v[0] / 10)}
+                    className="flex-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground mb-1 block">Estilo da linha</Label>
+                  <div className="flex gap-1">
+                    {[
+                      { label: "Sólida", value: [] as number[] },
+                      { label: "Tracejada", value: [6, 4] },
+                      { label: "Pontilhada", value: [2, 3] },
+                      { label: "Traço-ponto", value: [8, 3, 2, 3] },
+                    ].map((preset) => (
+                      <button
+                        key={preset.label}
+                        onClick={() => setSvgOutlineDash(preset.value)}
+                        className={`flex-1 h-6 rounded text-[8px] border transition-all ${JSON.stringify(svgOutlineDash) === JSON.stringify(preset.value) ? "border-foreground bg-foreground/10 text-foreground" : "border-border/60 text-muted-foreground hover:border-foreground/40"}`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-[10px] text-muted-foreground mb-1 block">Terminação</Label>
+                  <div className="flex gap-1">
+                    {[
+                      { label: "Reta", value: "butt" as const },
+                      { label: "Redonda", value: "round" as const },
+                      { label: "Quadrada", value: "square" as const },
+                    ].map((preset) => (
+                      <button
+                        key={preset.value}
+                        onClick={() => setSvgOutlineLineCap(preset.value)}
+                        className={`flex-1 h-6 rounded text-[8px] border transition-all ${svgOutlineLineCap === preset.value ? "border-foreground bg-foreground/10 text-foreground" : "border-border/60 text-muted-foreground hover:border-foreground/40"}`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </section>
 
           <Separator className="bg-sidebar-border" />
+
+          {/* Reset SVG Modifications */}
+          {(svgColorOverride || svgOutlineMode) && (
+            <section>
+              <button
+                onClick={handleResetSvgModifications}
+                className="w-full flex items-center justify-center gap-1.5 h-7 rounded text-[10px] text-muted-foreground hover:text-foreground border border-border/60 hover:border-foreground/40 transition-all"
+              >
+                <RotateCcw className="h-3 w-3" />
+                Resetar modificações SVG
+              </button>
+            </section>
+          )}
+
+          {(svgColorOverride || svgOutlineMode) && <Separator className="bg-sidebar-border" />}
 
           {/* Real Data Interpretation */}
           <section>
@@ -809,6 +923,17 @@ const Index = () => {
             <Download className="h-3 w-3 mr-1.5" />
             Export SVG
           </Button>
+          {svgOutlineMode && (
+            <Button
+              onClick={handleExportOutlineSVG}
+              disabled={!parsedSVG}
+              variant="outline"
+              className="w-full h-7 text-[10px]"
+            >
+              <Layers className="h-3 w-3 mr-1.5" />
+              Export Outline SVG
+            </Button>
+          )}
           <div className="flex gap-1.5">
             {[1, 2, 4].map((scale) => (
               <Button
@@ -842,6 +967,8 @@ const Index = () => {
           useRealDataInterpretation={useRealDataInterpretation}
           svgOutlineMode={svgOutlineMode}
           svgOutlineWidth={svgOutlineWidth}
+          svgOutlineDash={svgOutlineDash}
+          svgOutlineLineCap={svgOutlineLineCap}
           onProjectReady={(p) => {
             projectRef.current = p;
           }}

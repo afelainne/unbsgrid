@@ -30,6 +30,8 @@ interface PreviewCanvasProps {
   useRealDataInterpretation?: boolean;
   svgOutlineMode?: boolean;
   svgOutlineWidth?: number;
+  svgOutlineDash?: number[];
+  svgOutlineLineCap?: string;
   onProjectReady?: (project: paper.Project) => void;
 }
 
@@ -45,7 +47,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions,
   geometryOptions, geometryStyles, canvasBackground, modularScaleRatio = 1.618,
   safeZoneMargin = 0.1, svgColorOverride, useRealDataInterpretation = true,
-  svgOutlineMode = false, svgOutlineWidth = 1, onProjectReady,
+  svgOutlineMode = false, svgOutlineWidth = 1, svgOutlineDash = [], svgOutlineLineCap = 'butt',
+  onProjectReady,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -93,6 +96,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           }
           pathItem.fillColor = null;
           pathItem.strokeWidth = svgOutlineWidth;
+          if (svgOutlineDash.length > 0) pathItem.dashArray = svgOutlineDash;
+          pathItem.strokeCap = svgOutlineLineCap;
         }
         if ((it as any).children) {
           (it as any).children.forEach((child: paper.Item) => applyOutline(child));
@@ -216,7 +221,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
     (paper.view as any).draw();
     onProjectReady?.(paper.project);
-  }, [parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions, geometryOptions, geometryStyles, zoom, panOffset, onProjectReady, modularScaleRatio, safeZoneMargin, svgColorOverride, canvasBackground, useRealDataInterpretation, svgOutlineMode, svgOutlineWidth]);
+  }, [parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions, geometryOptions, geometryStyles, zoom, panOffset, onProjectReady, modularScaleRatio, safeZoneMargin, svgColorOverride, canvasBackground, useRealDataInterpretation, svgOutlineMode, svgOutlineWidth, svgOutlineDash, svgOutlineLineCap]);
 
   useEffect(() => { draw(); }, [draw]);
 
