@@ -16,10 +16,16 @@ interface StyleConfig {
   strokeWidth: number;
 }
 
+interface RenderContext {
+  actualPaths?: paper.Path[];
+  useRealData?: boolean;
+}
+
 export function renderBoundingRects(
   bounds: paper.Rectangle,
   scaledCompBounds: paper.Rectangle[],
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   scaledCompBounds.forEach(cb => {
@@ -37,69 +43,184 @@ export function renderBoundingRects(
 
 export function renderCircles(
   scaledCompBounds: paper.Rectangle[],
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const dimColor = hexToColor(style.color, style.opacity * 0.6);
+  
   scaledCompBounds.forEach(cb => {
     const cx = cb.center.x;
     const cy = cb.center.y;
     const inscribedR = Math.min(cb.width, cb.height) / 2;
-    const inscribed = new paper.Path.Circle(new paper.Point(cx, cy), inscribedR);
-    inscribed.strokeColor = color;
-    inscribed.strokeWidth = style.strokeWidth;
-    inscribed.fillColor = null;
-
     const circumR = Math.sqrt(cb.width * cb.width + cb.height * cb.height) / 2;
-    const circum = new paper.Path.Circle(new paper.Point(cx, cy), circumR);
-    circum.strokeColor = dimColor;
-    circum.strokeWidth = style.strokeWidth;
-    circum.fillColor = null;
-    circum.dashArray = [6, 4];
+    
+    // When using real data, only show circles that intersect with actual paths
+    if (context?.useRealData && context?.actualPaths) {
+      const inscribedCircle = new paper.Path.Circle(new paper.Point(cx, cy), inscribedR);
+      let inscribedIntersects = false;
+      for (const path of context.actualPaths) {
+        const intersections = inscribedCircle.getIntersections(path);
+        if (intersections.length > 0) {
+          inscribedIntersects = true;
+          break;
+        }
+      }
+      
+      if (inscribedIntersects) {
+        inscribedCircle.strokeColor = color;
+        inscribedCircle.strokeWidth = style.strokeWidth;
+        inscribedCircle.fillColor = null;
+      } else {
+        inscribedCircle.remove();
+      }
+      
+      const circumCircle = new paper.Path.Circle(new paper.Point(cx, cy), circumR);
+      let circumIntersects = false;
+      for (const path of context.actualPaths) {
+        const intersections = circumCircle.getIntersections(path);
+        if (intersections.length > 0) {
+          circumIntersects = true;
+          break;
+        }
+      }
+      
+      if (circumIntersects) {
+        circumCircle.strokeColor = dimColor;
+        circumCircle.strokeWidth = style.strokeWidth;
+        circumCircle.fillColor = null;
+        circumCircle.dashArray = [6, 4];
+      } else {
+        circumCircle.remove();
+      }
+    } else {
+      // Original behavior: show all circles
+      const inscribed = new paper.Path.Circle(new paper.Point(cx, cy), inscribedR);
+      inscribed.strokeColor = color;
+      inscribed.strokeWidth = style.strokeWidth;
+      inscribed.fillColor = null;
+
+      const circum = new paper.Path.Circle(new paper.Point(cx, cy), circumR);
+      circum.strokeColor = dimColor;
+      circum.strokeWidth = style.strokeWidth;
+      circum.fillColor = null;
+      circum.dashArray = [6, 4];
+    }
   });
 }
 
 export function renderCenterLines(
   bounds: paper.Rectangle,
   scaledCompBounds: paper.Rectangle[],
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const dimColor = hexToColor(style.color, style.opacity * 0.5);
 
+  // Main horizontal and vertical center lines
   const hLine = new paper.Path.Line(
     new paper.Point(bounds.left - 30, bounds.center.y),
     new paper.Point(bounds.right + 30, bounds.center.y)
   );
-  hLine.strokeColor = color;
-  hLine.strokeWidth = style.strokeWidth;
-  hLine.dashArray = [8, 4];
-
+  
   const vLine = new paper.Path.Line(
     new paper.Point(bounds.center.x, bounds.top - 30),
     new paper.Point(bounds.center.x, bounds.bottom + 30)
   );
-  vLine.strokeColor = color;
-  vLine.strokeWidth = style.strokeWidth;
-  vLine.dashArray = [8, 4];
 
+  // When using real data, only show lines if they intersect with actual paths
+  if (context?.useRealData && context?.actualPaths) {
+    let hIntersects = false;
+    let vIntersects = false;
+    
+    for (const path of context.actualPaths) {
+      if (!hIntersects && hLine.getIntersections(path).length > 0) {
+        hIntersects = true;
+      }
+      if (!vIntersects && vLine.getIntersections(path).length > 0) {
+        vIntersects = true;
+      }
+      if (hIntersects && vIntersects) break;
+    }
+    
+    if (hIntersects) {
+      hLine.strokeColor = color;
+      hLine.strokeWidth = style.strokeWidth;
+      hLine.dashArray = [8, 4];
+    } else {
+      hLine.remove();
+    }
+    
+    if (vIntersects) {
+      vLine.strokeColor = color;
+      vLine.strokeWidth = style.strokeWidth;
+      vLine.dashArray = [8, 4];
+    } else {
+      vLine.remove();
+    }
+  } else {
+    // Original behavior: always show center lines
+    hLine.strokeColor = color;
+    hLine.strokeWidth = style.strokeWidth;
+    hLine.dashArray = [8, 4];
+    
+    vLine.strokeColor = color;
+    vLine.strokeWidth = style.strokeWidth;
+    vLine.dashArray = [8, 4];
+  }
+
+  // Component center lines
   scaledCompBounds.forEach(cb => {
     if (Math.abs(cb.center.x - bounds.center.x) > 2 || Math.abs(cb.center.y - bounds.center.y) > 2) {
       const ch = new paper.Path.Line(
         new paper.Point(cb.left - 10, cb.center.y),
         new paper.Point(cb.right + 10, cb.center.y)
       );
-      ch.strokeColor = dimColor;
-      ch.strokeWidth = style.strokeWidth * 0.5;
-      ch.dashArray = [4, 3];
-
+      
       const cv = new paper.Path.Line(
         new paper.Point(cb.center.x, cb.top - 10),
         new paper.Point(cb.center.x, cb.bottom + 10)
       );
-      cv.strokeColor = dimColor;
-      cv.strokeWidth = style.strokeWidth * 0.5;
-      cv.dashArray = [4, 3];
+      
+      if (context?.useRealData && context?.actualPaths) {
+        let chIntersects = false;
+        let cvIntersects = false;
+        
+        for (const path of context.actualPaths) {
+          if (!chIntersects && ch.getIntersections(path).length > 0) {
+            chIntersects = true;
+          }
+          if (!cvIntersects && cv.getIntersections(path).length > 0) {
+            cvIntersects = true;
+          }
+          if (chIntersects && cvIntersects) break;
+        }
+        
+        if (chIntersects) {
+          ch.strokeColor = dimColor;
+          ch.strokeWidth = style.strokeWidth * 0.5;
+          ch.dashArray = [4, 3];
+        } else {
+          ch.remove();
+        }
+        
+        if (cvIntersects) {
+          cv.strokeColor = dimColor;
+          cv.strokeWidth = style.strokeWidth * 0.5;
+          cv.dashArray = [4, 3];
+        } else {
+          cv.remove();
+        }
+      } else {
+        ch.strokeColor = dimColor;
+        ch.strokeWidth = style.strokeWidth * 0.5;
+        ch.dashArray = [4, 3];
+        
+        cv.strokeColor = dimColor;
+        cv.strokeWidth = style.strokeWidth * 0.5;
+        cv.dashArray = [4, 3];
+      }
     }
   });
 }
@@ -107,27 +228,87 @@ export function renderCenterLines(
 export function renderDiagonals(
   bounds: paper.Rectangle,
   scaledCompBounds: paper.Rectangle[],
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const dimColor = hexToColor(style.color, style.opacity * 0.5);
 
   const d1 = new paper.Path.Line(new paper.Point(bounds.left, bounds.top), new paper.Point(bounds.right, bounds.bottom));
-  d1.strokeColor = color;
-  d1.strokeWidth = style.strokeWidth;
-
   const d2 = new paper.Path.Line(new paper.Point(bounds.right, bounds.top), new paper.Point(bounds.left, bounds.bottom));
-  d2.strokeColor = color;
-  d2.strokeWidth = style.strokeWidth;
+
+  // When using real data, only show diagonals that intersect with actual paths
+  if (context?.useRealData && context?.actualPaths) {
+    let d1Intersects = false;
+    let d2Intersects = false;
+    
+    for (const path of context.actualPaths) {
+      if (!d1Intersects && d1.getIntersections(path).length > 0) {
+        d1Intersects = true;
+      }
+      if (!d2Intersects && d2.getIntersections(path).length > 0) {
+        d2Intersects = true;
+      }
+      if (d1Intersects && d2Intersects) break;
+    }
+    
+    if (d1Intersects) {
+      d1.strokeColor = color;
+      d1.strokeWidth = style.strokeWidth;
+    } else {
+      d1.remove();
+    }
+    
+    if (d2Intersects) {
+      d2.strokeColor = color;
+      d2.strokeWidth = style.strokeWidth;
+    } else {
+      d2.remove();
+    }
+  } else {
+    d1.strokeColor = color;
+    d1.strokeWidth = style.strokeWidth;
+    d2.strokeColor = color;
+    d2.strokeWidth = style.strokeWidth;
+  }
 
   scaledCompBounds.forEach(cb => {
     const cd1 = new paper.Path.Line(new paper.Point(cb.left, cb.top), new paper.Point(cb.right, cb.bottom));
-    cd1.strokeColor = dimColor;
-    cd1.strokeWidth = style.strokeWidth * 0.5;
-
     const cd2 = new paper.Path.Line(new paper.Point(cb.right, cb.top), new paper.Point(cb.left, cb.bottom));
-    cd2.strokeColor = dimColor;
-    cd2.strokeWidth = style.strokeWidth * 0.5;
+
+    if (context?.useRealData && context?.actualPaths) {
+      let cd1Intersects = false;
+      let cd2Intersects = false;
+      
+      for (const path of context.actualPaths) {
+        if (!cd1Intersects && cd1.getIntersections(path).length > 0) {
+          cd1Intersects = true;
+        }
+        if (!cd2Intersects && cd2.getIntersections(path).length > 0) {
+          cd2Intersects = true;
+        }
+        if (cd1Intersects && cd2Intersects) break;
+      }
+      
+      if (cd1Intersects) {
+        cd1.strokeColor = dimColor;
+        cd1.strokeWidth = style.strokeWidth * 0.5;
+      } else {
+        cd1.remove();
+      }
+      
+      if (cd2Intersects) {
+        cd2.strokeColor = dimColor;
+        cd2.strokeWidth = style.strokeWidth * 0.5;
+      } else {
+        cd2.remove();
+      }
+    } else {
+      cd1.strokeColor = dimColor;
+      cd1.strokeWidth = style.strokeWidth * 0.5;
+      cd2.strokeColor = dimColor;
+      cd2.strokeWidth = style.strokeWidth * 0.5;
+    }
   });
 }
 
@@ -175,21 +356,60 @@ export function renderGoldenRatio(
 export function renderTangentLines(
   bounds: paper.Rectangle,
   scaledCompBounds: paper.Rectangle[],
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   scaledCompBounds.forEach(cb => {
     [cb.top, cb.bottom].forEach(y => {
       const line = new paper.Path.Line(new paper.Point(bounds.left - 40, y), new paper.Point(bounds.right + 40, y));
-      line.strokeColor = color;
-      line.strokeWidth = style.strokeWidth;
-      line.dashArray = [2, 3];
+      
+      if (context?.useRealData && context?.actualPaths) {
+        let intersects = false;
+        for (const path of context.actualPaths) {
+          if (line.getIntersections(path).length > 0) {
+            intersects = true;
+            break;
+          }
+        }
+        
+        if (intersects) {
+          line.strokeColor = color;
+          line.strokeWidth = style.strokeWidth;
+          line.dashArray = [2, 3];
+        } else {
+          line.remove();
+        }
+      } else {
+        line.strokeColor = color;
+        line.strokeWidth = style.strokeWidth;
+        line.dashArray = [2, 3];
+      }
     });
     [cb.left, cb.right].forEach(x => {
       const line = new paper.Path.Line(new paper.Point(x, bounds.top - 40), new paper.Point(x, bounds.bottom + 40));
-      line.strokeColor = color;
-      line.strokeWidth = style.strokeWidth;
-      line.dashArray = [2, 3];
+      
+      if (context?.useRealData && context?.actualPaths) {
+        let intersects = false;
+        for (const path of context.actualPaths) {
+          if (line.getIntersections(path).length > 0) {
+            intersects = true;
+            break;
+          }
+        }
+        
+        if (intersects) {
+          line.strokeColor = color;
+          line.strokeWidth = style.strokeWidth;
+          line.dashArray = [2, 3];
+        } else {
+          line.remove();
+        }
+      } else {
+        line.strokeColor = color;
+        line.strokeWidth = style.strokeWidth;
+        line.dashArray = [2, 3];
+      }
     });
   });
 }

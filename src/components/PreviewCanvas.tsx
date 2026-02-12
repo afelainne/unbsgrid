@@ -89,6 +89,27 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     const components = parsedSVG.components;
     const logomarkSize = getLogomarkSize(components) * scale;
 
+    // Extract actual paths from the scaled/transformed SVG
+    const actualPaths: paper.Path[] = [];
+    function collectActualPaths(it: paper.Item) {
+      if (it instanceof paper.Path) {
+        actualPaths.push(it);
+      }
+      if (it instanceof paper.CompoundPath && it.children) {
+        for (const child of it.children) {
+          if (child instanceof paper.Path) {
+            actualPaths.push(child);
+          }
+        }
+      }
+      if (it.children && !(it instanceof paper.CompoundPath)) {
+        for (const child of it.children) {
+          collectActualPaths(child);
+        }
+      }
+    }
+    collectActualPaths(item);
+
     const scaledCompBounds = components.map(c => new paper.Rectangle(
       bounds.left + (c.bounds.left - parsedSVG.fullBounds.left) / parsedSVG.fullBounds.width * bounds.width,
       bounds.top + (c.bounds.top - parsedSVG.fullBounds.top) / parsedSVG.fullBounds.height * bounds.height,
@@ -152,12 +173,14 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
     // Geometry renderers
     const s = geometryStyles;
-    if (geometryOptions.boundingRects) renderBoundingRects(bounds, scaledCompBounds, s.boundingRects);
-    if (geometryOptions.circles) renderCircles(scaledCompBounds, s.circles);
-    if (geometryOptions.centerLines) renderCenterLines(bounds, scaledCompBounds, s.centerLines);
-    if (geometryOptions.diagonals) renderDiagonals(bounds, scaledCompBounds, s.diagonals);
+    const renderContext = { actualPaths, useRealData: true };
+    
+    if (geometryOptions.boundingRects) renderBoundingRects(bounds, scaledCompBounds, s.boundingRects, renderContext);
+    if (geometryOptions.circles) renderCircles(scaledCompBounds, s.circles, renderContext);
+    if (geometryOptions.centerLines) renderCenterLines(bounds, scaledCompBounds, s.centerLines, renderContext);
+    if (geometryOptions.diagonals) renderDiagonals(bounds, scaledCompBounds, s.diagonals, renderContext);
     if (geometryOptions.goldenRatio) renderGoldenRatio(bounds, s.goldenRatio);
-    if (geometryOptions.tangentLines) renderTangentLines(bounds, scaledCompBounds, s.tangentLines);
+    if (geometryOptions.tangentLines) renderTangentLines(bounds, scaledCompBounds, s.tangentLines, renderContext);
     if (geometryOptions.goldenSpiral) renderGoldenSpiral(bounds, s.goldenSpiral);
     if (geometryOptions.isometricGrid) renderIsometricGrid(bounds, s.isometricGrid, gridSubdivisions);
     if (geometryOptions.bezierHandles && parsedSVG.segments.length > 0) {

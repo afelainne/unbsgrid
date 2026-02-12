@@ -15,12 +15,28 @@ export interface BezierSegmentData {
   hasHandleOut: boolean;
 }
 
+export interface PathGeometry {
+  allPaths: paper.Path[];
+  allPoints: paper.Point[];
+  extremePoints: {
+    topLeft: paper.Point;
+    topRight: paper.Point;
+    bottomLeft: paper.Point;
+    bottomRight: paper.Point;
+    topMost: paper.Point;
+    bottomMost: paper.Point;
+    leftMost: paper.Point;
+    rightMost: paper.Point;
+  };
+}
+
 export interface ParsedSVG {
   components: SVGComponent[];
   fullBounds: paper.Rectangle;
   originalSVG: string;
   paperProject: paper.Project;
   segments: BezierSegmentData[];
+  pathGeometry: PathGeometry;
 }
 
 export type ClearspaceUnit = 'logomark' | 'pixels' | 'centimeters' | 'inches';
@@ -37,6 +53,68 @@ export function convertToPixels(value: number, unit: ClearspaceUnit, logomarkSiz
     return value * logomarkSize;
   }
   return value * UNIT_TO_PX[unit];
+}
+
+export function extractPathGeometry(item: paper.Item): PathGeometry {
+  const allPaths: paper.Path[] = [];
+  const allPoints: paper.Point[] = [];
+
+  function walk(it: paper.Item) {
+    if (it instanceof paper.Path && it.segments) {
+      allPaths.push(it);
+      for (const seg of it.segments) {
+        allPoints.push(seg.point.clone());
+      }
+    }
+    if (it instanceof paper.CompoundPath && it.children) {
+      for (const child of it.children) {
+        walk(child);
+      }
+    }
+    if (it.children && !(it instanceof paper.CompoundPath)) {
+      for (const child of it.children) {
+        walk(child);
+      }
+    }
+  }
+
+  walk(item);
+
+  // Find extreme points
+  let topLeft = allPoints[0] || new paper.Point(0, 0);
+  let topRight = allPoints[0] || new paper.Point(0, 0);
+  let bottomLeft = allPoints[0] || new paper.Point(0, 0);
+  let bottomRight = allPoints[0] || new paper.Point(0, 0);
+  let topMost = allPoints[0] || new paper.Point(0, 0);
+  let bottomMost = allPoints[0] || new paper.Point(0, 0);
+  let leftMost = allPoints[0] || new paper.Point(0, 0);
+  let rightMost = allPoints[0] || new paper.Point(0, 0);
+
+  for (const pt of allPoints) {
+    if (pt.x + pt.y < topLeft.x + topLeft.y) topLeft = pt;
+    if (pt.x - pt.y > topRight.x - topRight.y) topRight = pt;
+    if (pt.y - pt.x > bottomLeft.y - bottomLeft.x) bottomLeft = pt;
+    if (pt.x + pt.y > bottomRight.x + bottomRight.y) bottomRight = pt;
+    if (pt.y < topMost.y) topMost = pt;
+    if (pt.y > bottomMost.y) bottomMost = pt;
+    if (pt.x < leftMost.x) leftMost = pt;
+    if (pt.x > rightMost.x) rightMost = pt;
+  }
+
+  return {
+    allPaths,
+    allPoints,
+    extremePoints: {
+      topLeft,
+      topRight,
+      bottomLeft,
+      bottomRight,
+      topMost,
+      bottomMost,
+      leftMost,
+      rightMost,
+    },
+  };
 }
 
 export function extractBezierHandles(item: paper.Item): BezierSegmentData[] {
@@ -118,6 +196,7 @@ export function parseSVG(svgString: string, canvas: HTMLCanvasElement): ParsedSV
   
   const fullBounds = item.bounds;
   const segments = extractBezierHandles(item);
+  const pathGeometry = extractPathGeometry(item);
   
   return {
     components,
@@ -125,6 +204,7 @@ export function parseSVG(svgString: string, canvas: HTMLCanvasElement): ParsedSV
     originalSVG: svgString,
     paperProject: paper.project,
     segments,
+    pathGeometry,
   };
 }
 
@@ -192,3 +272,78 @@ export function exportSVG(project: paper.Project): string {
   const svg = project.exportSVG({ asString: true }) as string;
   return svg;
 }
+
+/**
+ * Check if a line intersects with any path in the geometry
+ */
+export function lineIntersectsPath(
+  line: paper.Path,
+  paths: paper.Path[],
+  tolerance: number = 2
+): boolean {
+  for (const path of paths) {
+    const intersections = line.getIntersections(path);
+    if (intersections.length > 0) return true;
+    
+    // Also check if line is very close to any path point
+    for (const seg of path.segments) {
+      const distance = line.getNearestPoint(seg.point).getDistance(seg.point);
+      if (distance < tolerance) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Check if a point is close to any path
+ */
+export function pointNearPath(
+  point: paper.Point,
+  paths: paper.Path[],
+  tolerance: number = 3
+): boolean {
+  for (const path of paths) {
+    const nearest = path.getNearestPoint(point);
+    if (nearest.getDistance(point) < tolerance) return true;
+  }
+  return false;
+}
+
+/**
+ * Get all intersection points between paths and a line
+ */
+export function getPathLineIntersections(
+  line: paper.Path,
+  paths: paper.Path[]
+): paper.Point[] {
+  const points: paper.Point[] = [];
+  for (const path of paths) {
+    const intersections = line.getIntersections(path);
+    for (const inter of intersections) {
+      points.push(inter.point);
+    }
+  }
+  return points;
+}
+
+/**
+ * Check if a circle intersects with paths
+ */
+export function circleIntersectsPath(
+  center: paper.Point,
+  radius: number,
+  paths: paper.Path[],
+  tolerance: number = 2
+): boolean {
+  const circle = new paper.Path.Circle(center, radius);
+  for (const path of paths) {
+    const intersections = circle.getIntersections(path);
+    if (intersections.length > 0) {
+      circle.remove();
+      return true;
+    }
+  }
+  circle.remove();
+  return false;
+}
+
