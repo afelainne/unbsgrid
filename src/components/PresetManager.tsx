@@ -32,22 +32,22 @@ const PresetManager: React.FC<Props> = ({ activePreset, isModified, onSaveClick,
       </div>
     )}
     <div className="flex gap-2">
-      <Button size="sm" variant="outline" className="flex-1 h-7 text-[10px]" onClick={onLoadClick}>
-        <FolderOpen className="h-3 w-3 mr-1" /> Carregar
+      <Button size="sm" variant="outline" className="flex-1 h-6 text-[9px]" onClick={onLoadClick}>
+        <FolderOpen className="h-2.5 w-2.5 mr-1" /> Carregar
       </Button>
-      <Button size="sm" variant="outline" className="flex-1 h-7 text-[10px]" onClick={onSaveClick}>
-        <Save className="h-3 w-3 mr-1" /> Salvar
+      <Button size="sm" variant="outline" className="flex-1 h-6 text-[9px]" onClick={onSaveClick}>
+        <Save className="h-2.5 w-2.5 mr-1" /> Salvar
       </Button>
     </div>
 
     {/* Inline builtin preset chips */}
     {builtinPresets.length > 0 && (
-      <div className="flex flex-wrap gap-1.5 mt-2.5">
+      <div className="flex flex-wrap gap-1 mt-2">
         {builtinPresets.map(preset => (
           <button
             key={preset.id}
             onClick={() => onApplyPreset?.(preset)}
-            className={`px-2 py-0.5 rounded-full text-[9px] font-medium border transition-all ${
+            className={`px-1.5 py-0.5 rounded-full text-[8px] font-medium border transition-all ${
               activePreset?.id === preset.id
                 ? 'bg-primary text-primary-foreground border-primary'
                 : 'bg-sidebar border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'

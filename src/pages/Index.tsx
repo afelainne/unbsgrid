@@ -144,7 +144,7 @@ interface StyleControlProps {
 }
 
 const StyleControl: React.FC<StyleControlProps> = ({ style, onChange }) => (
-  <div className="pl-7 pr-1 space-y-2 pb-2">
+  <div className="pl-7 pr-1 space-y-1.5 pb-2">
     <div className="flex items-center gap-2">
       <Label className="text-[10px] text-muted-foreground w-10">Color</Label>
       <input
@@ -319,15 +319,15 @@ const Index = () => {
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       <aside className="w-[300px] min-w-[300px] bg-sidebar border-r border-sidebar-border flex flex-col">
-        <div className="px-4 py-4 border-b border-sidebar-border">
-          <h1 className="text-sm font-bold tracking-wide text-foreground">UNBSGRID</h1>
-          <p className="text-[10px] text-muted-foreground mt-0.5">Brand Grid & Construction Generator</p>
+        <div className="px-4 py-3 border-b border-sidebar-border">
+          <h1 className="text-xs font-bold tracking-wide text-foreground">UNBSGRID</h1>
+          <p className="text-[9px] text-muted-foreground mt-0.5">Brand Grid & Construction Generator</p>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
           {/* Upload */}
           <section>
-            <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider mb-2 block">SVG Upload</Label>
+            <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider mb-2 block">SVG Upload</Label>
             <SVGDropZone onSVGLoaded={handleSVGLoaded} />
             {parsedSVG && (
               <p className="text-[10px] text-muted-foreground mt-2">
@@ -342,8 +342,8 @@ const Index = () => {
           {/* SVG Color Override */}
           <section>
             <div className="flex items-center gap-1.5 mb-2">
-              <Palette className="h-3.5 w-3.5 text-muted-foreground" />
-              <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">SVG Color</Label>
+              <Palette className="h-3 w-3 text-muted-foreground" />
+              <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider">SVG Color</Label>
               <InfoTooltip content="Altere a cor de todos os caminhos do SVG importado. Útil para testar o logo em diferentes cores ou verificar como ele funciona em monocromático." />
             </div>
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -417,15 +417,15 @@ const Index = () => {
           {/* Canvas Background */}
           <section>
             <div className="flex items-center gap-1.5 mb-3">
-              <Hexagon className="h-3.5 w-3.5 text-muted-foreground" />
-              <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">Canvas</Label>
+              <Hexagon className="h-3 w-3 text-muted-foreground" />
+              <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider">Canvas</Label>
               <InfoTooltip content="Controle o fundo do canvas de visualização. Use 'Checkerboard' para simular transparência, 'Light' para fundos claros e 'Dark' para fundos escuros." />
             </div>
             <div className="space-y-3">
               <div>
                 <Label className="text-[10px] text-muted-foreground mb-1 block">Background</Label>
                 <Select value={canvasBackground} onValueChange={(v: CanvasBackground) => setCanvasBackground(v)}>
-                  <SelectTrigger className="h-8 bg-input border-border text-foreground text-xs">
+                  <SelectTrigger className="h-7 bg-input border-border text-foreground text-[10px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -443,8 +443,8 @@ const Index = () => {
           {/* Clearspace */}
           <section>
             <div className="flex items-center gap-1.5 mb-3">
-              <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-              <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">Clearspace</Label>
+              <Shield className="h-3 w-3 text-muted-foreground" />
+              <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider">Clearspace</Label>
               <InfoTooltip content="Clearspace (zona de proteção) é a área mínima ao redor do logo onde nenhum outro elemento gráfico deve aparecer. O valor 'X' define a distância em unidades selecionadas. Quanto maior o valor, mais espaço livre ao redor." />
             </div>
             <div className="space-y-3">
@@ -452,7 +452,7 @@ const Index = () => {
                 <Label className="text-[10px] text-muted-foreground mb-1 block">Value</Label>
                 <Input type="number" min={0} step={0.5} value={clearspaceValue}
                   onChange={e => setClearspaceValue(parseFloat(e.target.value) || 0)}
-                  className="h-8 bg-input border-border text-foreground text-xs" />
+                  className="h-7 bg-input border-border text-foreground text-[10px]" />
               </div>
               <div>
                 <Label className="text-[10px] text-muted-foreground mb-1 block">Unit</Label>
@@ -466,13 +466,13 @@ const Index = () => {
           {/* Construction Grid */}
           <section>
             <div className="flex items-center gap-1.5 mb-3">
-              <Grid3X3 className="h-3.5 w-3.5 text-muted-foreground" />
-              <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">Construction Grid</Label>
+              <Grid3X3 className="h-3 w-3 text-muted-foreground" />
+              <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider">Construction Grid</Label>
               <InfoTooltip content="Gera uma grade modular baseada nas proporções do logomark. Útil para alinhar elementos em layouts. As subdivisões controlam a densidade da grade." />
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-foreground">Show Grid</Label>
+                <Label className="text-[10px] text-foreground">Show Grid</Label>
                 <Switch checked={showGrid} onCheckedChange={setShowGrid} />
               </div>
               {showGrid && (
@@ -481,11 +481,11 @@ const Index = () => {
                     <Label className="text-[10px] text-muted-foreground mb-1 block">Subdivisions</Label>
                     <Input type="number" min={2} max={32} value={gridSubdivisions}
                       onChange={e => setGridSubdivisions(parseInt(e.target.value) || 8)}
-                      className="h-8 bg-input border-border text-foreground text-xs" />
+                      className="h-7 bg-input border-border text-foreground text-[10px]" />
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
-                      <Label className="text-xs text-foreground">Invert Components</Label>
+                      <Label className="text-[10px] text-foreground">Invert Components</Label>
                       <InfoTooltip content="Troca a detecção automática de qual parte do logo é o ícone (logomark) e qual é o texto (wordmark). A grade e as proporções são calculadas com base no elemento identificado como ícone." />
                     </div>
                     <Switch checked={isInverted} onCheckedChange={handleInvert} />
@@ -500,8 +500,8 @@ const Index = () => {
           {/* Construction Geometry */}
           <section>
             <div className="flex items-center gap-1.5 mb-3">
-              <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-              <Label className="text-xs font-semibold text-secondary-foreground uppercase tracking-wider">Construction Geometry</Label>
+              <Layers className="h-3 w-3 text-muted-foreground" />
+              <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider">Construction Geometry</Label>
               <InfoTooltip content="Sobreposições geométricas de construção para análise visual do logo. Cada camada pode ter cor, opacidade e espessura de traço personalizados. Ative múltiplas camadas para uma análise completa." />
             </div>
             <div className="space-y-1">
@@ -511,21 +511,21 @@ const Index = () => {
                   open={openGroups[group.label]}
                   onOpenChange={open => setOpenGroups(p => ({ ...p, [group.label]: open }))}
                 >
-                  <CollapsibleTrigger className="flex items-center gap-1.5 w-full py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors">
-                    {openGroups[group.label] ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                  <CollapsibleTrigger className="flex items-center gap-1.5 w-full py-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground hover:bg-sidebar-accent rounded-md px-1.5 -mx-1.5 transition-colors">
+                    {openGroups[group.label] ? <ChevronDown className="h-2.5 w-2.5" /> : <ChevronRight className="h-2.5 w-2.5" />}
                     {group.label}
                   </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-1">
+                  <CollapsibleContent className="space-y-0.5">
                     {group.keys.map(key => (
                       <div key={key}>
-                        <label className="flex items-center gap-2.5 cursor-pointer group py-0.5">
+                        <label className="flex items-center gap-2 cursor-pointer group py-0.5 hover:bg-sidebar-accent rounded-md px-1.5 -mx-1.5 transition-colors">
                           <Checkbox
                             checked={geometryOptions[key]}
                             onCheckedChange={() => toggleGeometry(key)}
                           />
-                          <span className="text-xs text-foreground group-hover:text-foreground transition-colors">{geometryLabels[key]}</span>
+                          <span className="text-[10px] text-foreground group-hover:text-foreground transition-colors">{geometryLabels[key]}</span>
                           <span
-                            className="ml-auto w-3 h-3 rounded-full border border-border"
+                            className="ml-auto w-2.5 h-2.5 rounded-full border border-border"
                             style={{ backgroundColor: geometryStyles[key].color }}
                           />
                         </label>
@@ -580,15 +580,15 @@ const Index = () => {
 
         <div className="px-4 py-3 border-t border-sidebar-border space-y-2">
           <Button onClick={handleExport} disabled={!parsedSVG}
-            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-9 text-xs font-semibold">
-            <Download className="h-3.5 w-3.5 mr-1.5" />
+            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-8 text-[10px] font-semibold">
+            <Download className="h-3 w-3 mr-1.5" />
             Export SVG
           </Button>
           <div className="flex gap-1.5">
             {[1, 2, 4].map(scale => (
               <Button key={scale} variant="outline" size="sm" disabled={!parsedSVG}
                 onClick={() => handleExportPNG(scale)}
-                className="flex-1 h-7 text-[10px]">
+                className="flex-1 h-6 text-[9px]">
                 PNG {scale}x
               </Button>
             ))}
