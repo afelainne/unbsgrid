@@ -447,8 +447,6 @@ export function renderGoldenSpiral(
       arc.fillColor = null;
       // Next rect
       const newH = w - h;
-      y = y;
-      x = x;
       w = w - h + (h - newH);
       w = h;
       h = newH;
@@ -465,7 +463,6 @@ export function renderGoldenSpiral(
       arc.strokeWidth = style.strokeWidth;
       arc.fillColor = null;
       const newW = h - w;
-      x = x;
       y = y + w;
       h = w;
       w = newW;
