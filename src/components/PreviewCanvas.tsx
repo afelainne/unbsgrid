@@ -27,6 +27,7 @@ interface PreviewCanvasProps {
   modularScaleRatio?: number;
   safeZoneMargin?: number;
   svgColorOverride?: string | null;
+  useRealDataInterpretation?: boolean;
   onProjectReady?: (project: paper.Project) => void;
 }
 
@@ -41,7 +42,7 @@ const bgClasses: Record<CanvasBackground, string> = {
 const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions,
   geometryOptions, geometryStyles, canvasBackground, modularScaleRatio = 1.618,
-  safeZoneMargin = 0.1, svgColorOverride, onProjectReady,
+  safeZoneMargin = 0.1, svgColorOverride, useRealDataInterpretation = true, onProjectReady,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -173,7 +174,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
     // Geometry renderers
     const s = geometryStyles;
-    const renderContext = { actualPaths, useRealData: true };
+    const renderContext = { actualPaths, useRealData: useRealDataInterpretation };
     
     if (geometryOptions.boundingRects) renderBoundingRects(bounds, scaledCompBounds, s.boundingRects, renderContext);
     if (geometryOptions.circles) renderCircles(scaledCompBounds, s.circles, renderContext);
@@ -211,7 +212,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
     (paper.view as any).draw();
     onProjectReady?.(paper.project);
-  }, [parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions, geometryOptions, geometryStyles, zoom, panOffset, onProjectReady, modularScaleRatio, safeZoneMargin, svgColorOverride, canvasBackground]);
+  }, [parsedSVG, clearspaceValue, clearspaceUnit, showGrid, gridSubdivisions, geometryOptions, geometryStyles, zoom, panOffset, onProjectReady, modularScaleRatio, safeZoneMargin, svgColorOverride, canvasBackground, useRealDataInterpretation]);
 
   useEffect(() => { draw(); }, [draw]);
 

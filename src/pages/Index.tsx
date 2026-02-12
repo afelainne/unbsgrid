@@ -232,6 +232,7 @@ const Index = () => {
   const [modularScaleRatio, setModularScaleRatio] = useState(1.618);
   const [safeZoneMargin, setSafeZoneMargin] = useState(0.1);
   const [svgColorOverride, setSvgColorOverride] = useState<string | null>(null);
+  const [useRealDataInterpretation, setUseRealDataInterpretation] = useState(true);
   const [geometryOptions, setGeometryOptions] = useState<GeometryOptions>({
     boundingRects: false,
     circles: false,
@@ -534,6 +535,29 @@ const Index = () => {
 
           <Separator className="bg-sidebar-border" />
 
+          {/* Real Data Interpretation */}
+          <section>
+            <div className="flex items-center gap-1.5 mb-2">
+              <Shield className="h-3 w-3 text-muted-foreground" />
+              <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider">
+                Interpretation Mode
+              </Label>
+              <InfoTooltip content="Quando ativado, as ferramentas de geometria apenas mostram guias que realmente intersectam com os caminhos vetoriais do SVG. Isso garante que as guias estejam analisando dados reais e não apenas sobrepostas às caixas delimitadoras." />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="use-real-data"
+                checked={useRealDataInterpretation}
+                onCheckedChange={setUseRealDataInterpretation}
+              />
+              <Label htmlFor="use-real-data" className="text-[10px] text-muted-foreground cursor-pointer">
+                {useRealDataInterpretation ? "Interpretar dados reais (SVG vetorial)" : "Modo overlay (caixas delimitadoras)"}
+              </Label>
+            </div>
+          </section>
+
+          <Separator className="bg-sidebar-border" />
+
           {/* Presets */}
           <PresetManager
             activePreset={activePreset}
@@ -775,6 +799,7 @@ const Index = () => {
           modularScaleRatio={modularScaleRatio}
           safeZoneMargin={safeZoneMargin}
           svgColorOverride={svgColorOverride}
+          useRealDataInterpretation={useRealDataInterpretation}
           onProjectReady={(p) => {
             projectRef.current = p;
           }}
