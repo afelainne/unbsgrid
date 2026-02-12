@@ -1,55 +1,22 @@
 
 
-# Hover Selection nos Controles + Textos e Botões Menores
+# Correção: Background Dark + Botão Show Grid Invisível
 
-## 1. Hover Selection nos Controles de Geometria
+## Problema 1: Background Dark não funciona
 
-Adicionar um efeito de hover highlight em cada item de geometria na sidebar, para que ao passar o mouse o item inteiro se destaque visualmente.
+A variável CSS `--canvas` está definida como `0 0% 95%` (cinza claro, 95% de luminosidade). Quando o usuário seleciona "Dark", o canvas usa `bg-canvas` que aplica esse cinza claro — visualmente igual ao fundo normal.
 
-### Mudanças em `src/pages/Index.tsx`:
+**Correção**: Mudar a variável `--canvas` para um valor realmente escuro, como `0 0% 15%` (cinza escuro).
 
-- Cada `label` de geometria (linha 521) recebe classes de hover: `hover:bg-sidebar-accent rounded-md px-1.5 -mx-1.5 transition-colors`
-- O grupo collapsible trigger (linha 514) recebe hover mais visível
-- Seções inteiras (Canvas, Clearspace, Grid) recebem hover sutil nos controles internos
-- Swatches de cor SVG recebem hover com scale e borda
+## Problema 2: Botão Show Grid quase invisível
 
-## 2. Textos e Botões Menores
+O Switch quando desmarcado usa `bg-input` que é `0 0% 98%` (quase branco), sobre o fundo da sidebar que é `0 0% 98%` (também quase branco). O contraste é zero.
 
-Reduzir tamanhos em toda a sidebar para um visual mais compacto e profissional:
+**Correção**: Mudar a variável `--input` para um valor com mais contraste, como `0 0% 90%`, para que switches e inputs fiquem visíveis contra o fundo da sidebar.
 
-### Títulos de seção:
-- De `text-xs` para `text-[10px]` nos Labels de seção (SVG Upload, SVG Color, Canvas, Clearspace, Construction Grid, Construction Geometry)
-- Ícones de seção de `h-3.5 w-3.5` para `h-3 w-3`
+## Arquivos
 
-### Controles:
-- Labels internos (Value, Unit, Background, Show Grid, etc.) de `text-xs` para `text-[10px]`
-- Inputs e Selects de `h-8` para `h-7`
-- StyleControl labels de `text-[10px]` para `text-[9px]`
-- StyleControl spacing de `space-y-2` para `space-y-1.5`
-
-### Geometria:
-- Labels de geometria (Bounding Rectangles, etc.) de `text-xs` para `text-[10px]`
-- Color swatch de `w-3 h-3` para `w-2.5 h-2.5`
-- Group triggers de `text-[10px]` para `text-[9px]`
-- Chevrons de `h-3 w-3` para `h-2.5 w-2.5`
-
-### Export:
-- Botão Export SVG de `h-9` para `h-8`, texto de `text-xs` para `text-[10px]`
-- Botões PNG de `h-7` para `h-6`, texto de `text-[10px]` para `text-[9px]`
-
-### Header:
-- Título UNBSGRID de `text-sm` para `text-xs`
-- Subtítulo de `text-[10px]` para `text-[9px]`
-- Padding do header de `py-4` para `py-3`
-
-### Presets:
-- PresetManager botões de `h-7` para `h-6`
-- Chips de preset de `text-[9px]` para `text-[8px]`
-
-## Resumo de Arquivos
-
-| Arquivo | Mudanças |
-|---------|----------|
-| `src/pages/Index.tsx` | Hover effects em todos os controles; reduzir tamanhos de textos, inputs, botões e ícones em toda a sidebar |
-| `src/components/PresetManager.tsx` | Reduzir tamanhos dos botões e chips |
+| Arquivo | Mudança |
+|---------|---------|
+| `src/index.css` | `--canvas: 0 0% 15%` (era 95%); `--input: 0 0% 90%` (era 98%) |
 
