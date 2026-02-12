@@ -188,53 +188,53 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       });
     }
 
-    // Geometry renderers
+    // Geometry renderers - each wrapped in try/catch to prevent cascading failures
     const s = geometryStyles;
     const renderContext = { actualPaths, useRealData: useRealDataInterpretation };
-    
-    if (geometryOptions.boundingRects) renderBoundingRects(bounds, scaledCompBounds, s.boundingRects, renderContext);
-    if (geometryOptions.circles) renderCircles(scaledCompBounds, s.circles, renderContext);
-    if (geometryOptions.centerLines) renderCenterLines(bounds, scaledCompBounds, s.centerLines, renderContext);
-    if (geometryOptions.diagonals) renderDiagonals(bounds, scaledCompBounds, s.diagonals, renderContext);
-    if (geometryOptions.goldenRatio) renderGoldenRatio(bounds, s.goldenRatio, renderContext);
-    if (geometryOptions.tangentLines) renderTangentLines(bounds, scaledCompBounds, s.tangentLines, renderContext);
-    if (geometryOptions.goldenSpiral) renderGoldenSpiral(bounds, s.goldenSpiral, renderContext);
-    if (geometryOptions.isometricGrid) renderIsometricGrid(bounds, s.isometricGrid, gridSubdivisions, renderContext);
+    const safe = (fn: () => void) => { try { fn(); } catch { /* skip broken renderer */ } };
+
+    if (geometryOptions.boundingRects) safe(() => renderBoundingRects(bounds, scaledCompBounds, s.boundingRects, renderContext));
+    if (geometryOptions.circles) safe(() => renderCircles(scaledCompBounds, s.circles, renderContext));
+    if (geometryOptions.centerLines) safe(() => renderCenterLines(bounds, scaledCompBounds, s.centerLines, renderContext));
+    if (geometryOptions.diagonals) safe(() => renderDiagonals(bounds, scaledCompBounds, s.diagonals, renderContext));
+    if (geometryOptions.goldenRatio) safe(() => renderGoldenRatio(bounds, s.goldenRatio, renderContext));
+    if (geometryOptions.tangentLines) safe(() => renderTangentLines(bounds, scaledCompBounds, s.tangentLines, renderContext));
+    if (geometryOptions.goldenSpiral) safe(() => renderGoldenSpiral(bounds, s.goldenSpiral, renderContext));
+    if (geometryOptions.isometricGrid) safe(() => renderIsometricGrid(bounds, s.isometricGrid, gridSubdivisions, renderContext));
     if (geometryOptions.bezierHandles && parsedSVG.segments.length > 0) {
-      renderBezierHandles(parsedSVG.segments, parsedSVG.fullBounds, bounds, s.bezierHandles);
+      safe(() => renderBezierHandles(parsedSVG.segments, parsedSVG.fullBounds, bounds, s.bezierHandles));
     }
-    if (geometryOptions.typographicProportions) renderTypographicProportions(bounds, s.typographicProportions, renderContext);
-    if (geometryOptions.thirdLines) renderThirdLines(bounds, s.thirdLines, renderContext);
-    // New renderers
-    if (geometryOptions.symmetryAxes) renderSymmetryAxes(bounds, scaledCompBounds, s.symmetryAxes, renderContext);
-    if (geometryOptions.angleMeasurements) renderAngleMeasurements(bounds, scaledCompBounds, s.angleMeasurements, renderContext);
-    if (geometryOptions.spacingGuides) renderSpacingGuides(bounds, scaledCompBounds, s.spacingGuides);
-    if (geometryOptions.rootRectangles) renderRootRectangles(bounds, s.rootRectangles, renderContext);
-    if (geometryOptions.modularScale) renderModularScale(bounds, s.modularScale, modularScaleRatio, renderContext);
-    if (geometryOptions.alignmentGuides) renderAlignmentGuides(bounds, scaledCompBounds, s.alignmentGuides, renderContext);
-    if (geometryOptions.safeZone) renderSafeZone(bounds, s.safeZone, safeZoneMargin, renderContext);
-    if (geometryOptions.pixelGrid) renderPixelGrid(bounds, s.pixelGrid, gridSubdivisions, renderContext);
-    if (geometryOptions.opticalCenter) renderOpticalCenter(bounds, s.opticalCenter, renderContext);
-    if (geometryOptions.contrastGuide) renderContrastGuide(bounds, s.contrastGuide, renderContext);
-    if (geometryOptions.dynamicBaseline) renderDynamicBaseline(bounds, s.dynamicBaseline, renderContext);
-    if (geometryOptions.fibonacciOverlay) renderFibonacciOverlay(bounds, s.fibonacciOverlay, renderContext);
-    if (geometryOptions.kenBurnsSafe) renderKenBurnsSafe(bounds, s.kenBurnsSafe, renderContext);
-    if (geometryOptions.componentRatioLabels) renderComponentRatioLabels(bounds, scaledCompBounds, s.componentRatioLabels);
-    if (geometryOptions.vesicaPiscis) renderVesicaPiscis(bounds, s.vesicaPiscis, renderContext);
-    if (geometryOptions.ruleOfOdds) renderRuleOfOdds(bounds, s.ruleOfOdds, renderContext);
-    if (geometryOptions.visualWeightMap) renderVisualWeightMap(bounds, scaledCompBounds, s.visualWeightMap, renderContext);
-    if (geometryOptions.anchoringPoints) renderAnchoringPoints(bounds, s.anchoringPoints, renderContext);
-    if (geometryOptions.harmonicDivisions) renderHarmonicDivisions(bounds, s.harmonicDivisions, renderContext);
+    if (geometryOptions.typographicProportions) safe(() => renderTypographicProportions(bounds, s.typographicProportions, renderContext));
+    if (geometryOptions.thirdLines) safe(() => renderThirdLines(bounds, s.thirdLines, renderContext));
+    if (geometryOptions.symmetryAxes) safe(() => renderSymmetryAxes(bounds, scaledCompBounds, s.symmetryAxes, renderContext));
+    if (geometryOptions.angleMeasurements) safe(() => renderAngleMeasurements(bounds, scaledCompBounds, s.angleMeasurements, renderContext));
+    if (geometryOptions.spacingGuides) safe(() => renderSpacingGuides(bounds, scaledCompBounds, s.spacingGuides));
+    if (geometryOptions.rootRectangles) safe(() => renderRootRectangles(bounds, s.rootRectangles, renderContext));
+    if (geometryOptions.modularScale) safe(() => renderModularScale(bounds, s.modularScale, modularScaleRatio, renderContext));
+    if (geometryOptions.alignmentGuides) safe(() => renderAlignmentGuides(bounds, scaledCompBounds, s.alignmentGuides, renderContext));
+    if (geometryOptions.safeZone) safe(() => renderSafeZone(bounds, s.safeZone, safeZoneMargin, renderContext));
+    if (geometryOptions.pixelGrid) safe(() => renderPixelGrid(bounds, s.pixelGrid, gridSubdivisions, renderContext));
+    if (geometryOptions.opticalCenter) safe(() => renderOpticalCenter(bounds, s.opticalCenter, renderContext));
+    if (geometryOptions.contrastGuide) safe(() => renderContrastGuide(bounds, s.contrastGuide, renderContext));
+    if (geometryOptions.dynamicBaseline) safe(() => renderDynamicBaseline(bounds, s.dynamicBaseline, renderContext));
+    if (geometryOptions.fibonacciOverlay) safe(() => renderFibonacciOverlay(bounds, s.fibonacciOverlay, renderContext));
+    if (geometryOptions.kenBurnsSafe) safe(() => renderKenBurnsSafe(bounds, s.kenBurnsSafe, renderContext));
+    if (geometryOptions.componentRatioLabels) safe(() => renderComponentRatioLabels(bounds, scaledCompBounds, s.componentRatioLabels));
+    if (geometryOptions.vesicaPiscis) safe(() => renderVesicaPiscis(bounds, s.vesicaPiscis, renderContext));
+    if (geometryOptions.ruleOfOdds) safe(() => renderRuleOfOdds(bounds, s.ruleOfOdds, renderContext));
+    if (geometryOptions.visualWeightMap) safe(() => renderVisualWeightMap(bounds, scaledCompBounds, s.visualWeightMap, renderContext));
+    if (geometryOptions.anchoringPoints) safe(() => renderAnchoringPoints(bounds, s.anchoringPoints, renderContext));
+    if (geometryOptions.harmonicDivisions) safe(() => renderHarmonicDivisions(bounds, s.harmonicDivisions, renderContext));
     // Advanced SVG Analysis
-    if (geometryOptions.parallelFlowLines) renderParallelFlowLines(bounds, s.parallelFlowLines, renderContext);
-    if (geometryOptions.underlyingCircles) renderUnderlyingCircles(bounds, s.underlyingCircles, renderContext, maxCircles);
-    if (geometryOptions.dominantDiagonals) renderDominantDiagonals(bounds, s.dominantDiagonals, renderContext);
-    if (geometryOptions.curvatureComb) renderCurvatureComb(bounds, s.curvatureComb, renderContext);
-    if (geometryOptions.skeletonCenterline) renderSkeletonCenterline(bounds, s.skeletonCenterline, renderContext);
-    if (geometryOptions.constructionGrid) renderConstructionGrid(bounds, s.constructionGrid, renderContext);
-    if (geometryOptions.pathDirectionArrows) renderPathDirectionArrows(bounds, s.pathDirectionArrows, renderContext);
-    if (geometryOptions.tangentIntersections) renderTangentIntersections(bounds, s.tangentIntersections, renderContext);
-    if (geometryOptions.anchorPoints) renderAnchorPoints(bounds, s.anchorPoints, renderContext, anchorPointSize);
+    if (geometryOptions.parallelFlowLines) safe(() => renderParallelFlowLines(bounds, s.parallelFlowLines, renderContext));
+    if (geometryOptions.underlyingCircles) safe(() => renderUnderlyingCircles(bounds, s.underlyingCircles, renderContext, maxCircles));
+    if (geometryOptions.dominantDiagonals) safe(() => renderDominantDiagonals(bounds, s.dominantDiagonals, renderContext));
+    if (geometryOptions.curvatureComb) safe(() => renderCurvatureComb(bounds, s.curvatureComb, renderContext));
+    if (geometryOptions.skeletonCenterline) safe(() => renderSkeletonCenterline(bounds, s.skeletonCenterline, renderContext));
+    if (geometryOptions.constructionGrid) safe(() => renderConstructionGrid(bounds, s.constructionGrid, renderContext));
+    if (geometryOptions.pathDirectionArrows) safe(() => renderPathDirectionArrows(bounds, s.pathDirectionArrows, renderContext));
+    if (geometryOptions.tangentIntersections) safe(() => renderTangentIntersections(bounds, s.tangentIntersections, renderContext));
+    if (geometryOptions.anchorPoints) safe(() => renderAnchorPoints(bounds, s.anchorPoints, renderContext, anchorPointSize));
 
     (paper.view as any).draw();
     onProjectReady?.(paper.project);

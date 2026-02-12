@@ -1935,8 +1935,8 @@ export function renderParallelFlowLines(
         if (!curve.hasHandles()) continue;
         const curveLen = curve.length;
         if (curveLen < 2) continue;
-        // Sample at 0%, 50%, 100%
-        for (const t of [0.0, 0.5, 1.0]) {
+        // Sample at 5%, 50%, 95% (avoid exact endpoints)
+        for (const t of [0.05, 0.5, 0.95]) {
           try {
             const pt = curve.getPointAt(curveLen * t);
             const tan = curve.getTangentAt(curveLen * t);
@@ -2078,9 +2078,11 @@ export function renderUnderlyingCircles(
 
       // Sample 3 points on the curve
       try {
-        const p1 = curve.getPointAt(0);
-        const p2 = curve.getPointAt(curve.length * 0.5);
-        const p3 = curve.getPointAt(curve.length);
+        const cLen = curve.length;
+        if (cLen < 1) continue;
+        const p1 = curve.getPointAt(cLen * 0.05);
+        const p2 = curve.getPointAt(cLen * 0.5);
+        const p3 = curve.getPointAt(cLen * 0.95);
         if (!p1 || !p2 || !p3) continue;
 
         // Circumscribed circle from 3 points
@@ -2213,42 +2215,66 @@ export function renderDominantDiagonals(
   lineCandidates.sort((a, b) => b.score - a.score);
   const topLines = lineCandidates.slice(0, 6);
 
+  // Cohen-Sutherland line clipping
+  const clipLineToRect = (x1: number, y1: number, x2: number, y2: number,
+    xmin: number, ymin: number, xmax: number, ymax: number
+  ): [number, number, number, number] | null => {
+    const INSIDE = 0, LEFT = 1, RIGHT = 2, BOTTOM = 4, TOP = 8;
+    const code = (x: number, y: number) => {
+      let c = INSIDE;
+      if (x < xmin) c |= LEFT; else if (x > xmax) c |= RIGHT;
+      if (y < ymin) c |= TOP; else if (y > ymax) c |= BOTTOM;
+      return c;
+    };
+    let c1 = code(x1, y1), c2 = code(x2, y2);
+    while (true) {
+      if (!(c1 | c2)) return [x1, y1, x2, y2];
+      if (c1 & c2) return null;
+      const co = c1 ? c1 : c2;
+      let x = 0, y = 0;
+      if (co & BOTTOM) { x = x1 + (x2 - x1) * (ymax - y1) / (y2 - y1); y = ymax; }
+      else if (co & TOP) { x = x1 + (x2 - x1) * (ymin - y1) / (y2 - y1); y = ymin; }
+      else if (co & RIGHT) { y = y1 + (y2 - y1) * (xmax - x1) / (x2 - x1); x = xmax; }
+      else if (co & LEFT) { y = y1 + (y2 - y1) * (xmin - x1) / (x2 - x1); x = xmin; }
+      if (co === c1) { x1 = x; y1 = y; c1 = code(x1, y1); }
+      else { x2 = x; y2 = y; c2 = code(x2, y2); }
+    }
+  };
+
+  const ext = 15;
+  const clipLeft = bounds.left - ext;
+  const clipTop = bounds.top - ext;
+  const clipRight = bounds.right + ext;
+  const clipBottom = bounds.bottom + ext;
+
   topLines.forEach((l, idx) => {
     const rad = l.angle * Math.PI / 180;
     const dx = Math.cos(rad);
     const dy = Math.sin(rad);
 
+    const lx1 = l.x - dx * diag;
+    const ly1 = l.y - dy * diag;
+    const lx2 = l.x + dx * diag;
+    const ly2 = l.y + dy * diag;
+
+    const clipped = clipLineToRect(lx1, ly1, lx2, ly2, clipLeft, clipTop, clipRight, clipBottom);
+    if (!clipped) return;
+
     const line = new paper.Path.Line(
-      new paper.Point(l.x - dx * diag, l.y - dy * diag),
-      new paper.Point(l.x + dx * diag, l.y + dy * diag)
+      new paper.Point(clipped[0], clipped[1]),
+      new paper.Point(clipped[2], clipped[3])
     );
+    line.strokeColor = idx < 2 ? color : dimColor;
+    line.strokeWidth = style.strokeWidth * (idx < 2 ? 1 : 0.6);
+    line.dashArray = [8, 4];
 
-    // Clip to reasonably extended bounds
-    const ext = 15;
-    const clipRect = new paper.Rectangle(
-      bounds.left - ext, bounds.top - ext,
-      bounds.width + ext * 2, bounds.height + ext * 2
-    );
-    const clipPath = new paper.Path.Rectangle(clipRect);
-    const clipped = line.intersect(clipPath);
-    line.remove();
-    clipPath.remove();
-
-    if (clipped && clipped.length > 0) {
-      clipped.strokeColor = idx < 2 ? color : dimColor;
-      clipped.strokeWidth = style.strokeWidth * (idx < 2 ? 1 : 0.6);
-      clipped.dashArray = [8, 4];
-
-      // Angle label
-      if (idx < 3) {
-        const labelPt = new paper.Point(bounds.right + 8, bounds.bottom - 8 - idx * 14);
-        const label = new paper.PointText(labelPt);
-        label.content = `${Math.round(l.angle)}°`;
-        label.fillColor = idx < 2 ? color : dimColor;
-        label.fontSize = 8;
-      }
-    } else {
-      clipped.remove();
+    // Angle label
+    if (idx < 3) {
+      const labelPt = new paper.Point(bounds.right + 8, bounds.bottom - 8 - idx * 14);
+      const label = new paper.PointText(labelPt);
+      label.content = `${Math.round(l.angle)}°`;
+      label.fillColor = idx < 2 ? color : dimColor;
+      label.fontSize = 8;
     }
   });
 }
@@ -2273,14 +2299,14 @@ export function renderCurvatureComb(
   for (const path of paths) {
     if (!path.length || path.length < 5) continue;
 
-    const steps = Math.max(20, Math.floor(path.length / 2));
-    for (let i = 0; i <= steps; i++) {
+    const steps = Math.min(100, Math.max(20, Math.floor(path.length / 2)));
+    for (let i = 0; i < steps; i++) {
       const offset = (i / steps) * path.length;
       try {
         const point = path.getPointAt(offset);
         const normal = path.getNormalAt(offset);
         const curvature = path.getCurvatureAt(offset);
-        if (!point || !normal || curvature === null || curvature === undefined) continue;
+        if (!point || !normal || curvature === null || curvature === undefined || isNaN(curvature)) continue;
 
         // Scale curvature to visual length
         const toothLen = Math.min(Math.abs(curvature) * 800, maxTeeth);
@@ -2322,19 +2348,21 @@ export function renderSkeletonCenterline(
 
     // Sample points around the closed path and find pairs of opposite points
     const totalLen = path.length;
-    const numSamples = Math.max(20, Math.floor(totalLen / 4));
+    const numSamples = Math.min(60, Math.max(20, Math.floor(totalLen / 4)));
     const halfLen = totalLen / 2;
     const midpoints: paper.Point[] = [];
 
     for (let i = 0; i < numSamples; i++) {
       const offset1 = (i / numSamples) * totalLen;
       try {
-        const p1 = path.getPointAt(offset1);
+        const clampedO1 = Math.min(offset1, totalLen - 0.1);
+        const p1 = path.getPointAt(clampedO1);
         if (!p1) continue;
 
         // Find the nearest point on the path to the "opposite side"
         const offset2 = (offset1 + halfLen) % totalLen;
-        const p2 = path.getPointAt(offset2);
+        const clampedO2 = Math.min(offset2, totalLen - 0.1);
+        const p2 = path.getPointAt(clampedO2);
         if (!p2) continue;
 
         const mid = new paper.Point((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
@@ -2538,10 +2566,12 @@ export function renderTangentIntersections(
 
       try {
         // Get tangent at start and end of curve
-        const t1Point = curve.getPointAt(0);
-        const t1Dir = curve.getTangentAt(0);
-        const t2Point = curve.getPointAt(curve.length);
-        const t2Dir = curve.getTangentAt(curve.length);
+        const cLen = curve.length;
+        if (cLen < 0.5) continue;
+        const t1Point = curve.getPointAt(0.1);
+        const t1Dir = curve.getTangentAt(0.1);
+        const t2Point = curve.getPointAt(cLen - 0.1);
+        const t2Dir = curve.getTangentAt(cLen - 0.1);
         if (!t1Point || !t1Dir || !t2Point || !t2Dir) continue;
 
         // Find intersection of the two tangent lines
