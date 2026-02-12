@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import paper from 'paper';
 import { ZoomIn, ZoomOut, Maximize, RotateCcw, Move } from 'lucide-react';
-import { type ParsedSVG, type ClearspaceUnit, computeClearspace, getLogomarkSize, generateGridLines } from '@/lib/svg-engine';
+import { type ParsedSVG, type ClearspaceUnit, computeClearspace, getLogomarkSize, generateGridLines, collectPaths } from '@/lib/svg-engine';
 import type { GeometryOptions, GeometryStyles, CanvasBackground } from '@/pages/Index';
 import {
   renderBoundingRects, renderCircles, renderCenterLines, renderDiagonals,
@@ -91,25 +91,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     const logomarkSize = getLogomarkSize(components) * scale;
 
     // Extract actual paths from the scaled/transformed SVG
-    const actualPaths: paper.Path[] = [];
-    function collectActualPaths(it: paper.Item) {
-      if (it instanceof paper.Path) {
-        actualPaths.push(it);
-      }
-      if (it instanceof paper.CompoundPath && it.children) {
-        for (const child of it.children) {
-          if (child instanceof paper.Path) {
-            actualPaths.push(child);
-          }
-        }
-      }
-      if (it.children && !(it instanceof paper.CompoundPath)) {
-        for (const child of it.children) {
-          collectActualPaths(child);
-        }
-      }
-    }
-    collectActualPaths(item);
+    const actualPaths = collectPaths(item);
 
     const scaledCompBounds = components.map(c => new paper.Rectangle(
       bounds.left + (c.bounds.left - parsedSVG.fullBounds.left) / parsedSVG.fullBounds.width * bounds.width,

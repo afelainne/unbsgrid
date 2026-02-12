@@ -55,20 +55,21 @@ export function convertToPixels(value: number, unit: ClearspaceUnit, logomarkSiz
   return value * UNIT_TO_PX[unit];
 }
 
-export function extractPathGeometry(item: paper.Item): PathGeometry {
-  const allPaths: paper.Path[] = [];
-  const allPoints: paper.Point[] = [];
-
+/**
+ * Collect all paths from a Paper.js item tree
+ */
+export function collectPaths(item: paper.Item): paper.Path[] {
+  const paths: paper.Path[] = [];
+  
   function walk(it: paper.Item) {
-    if (it instanceof paper.Path && it.segments) {
-      allPaths.push(it);
-      for (const seg of it.segments) {
-        allPoints.push(seg.point.clone());
-      }
+    if (it instanceof paper.Path) {
+      paths.push(it);
     }
     if (it instanceof paper.CompoundPath && it.children) {
       for (const child of it.children) {
-        walk(child);
+        if (child instanceof paper.Path) {
+          paths.push(child);
+        }
       }
     }
     if (it.children && !(it instanceof paper.CompoundPath)) {
@@ -77,8 +78,22 @@ export function extractPathGeometry(item: paper.Item): PathGeometry {
       }
     }
   }
-
+  
   walk(item);
+  return paths;
+}
+
+export function extractPathGeometry(item: paper.Item): PathGeometry {
+  const allPaths = collectPaths(item);
+  const allPoints: paper.Point[] = [];
+
+  for (const path of allPaths) {
+    if (path.segments) {
+      for (const seg of path.segments) {
+        allPoints.push(seg.point.clone());
+      }
+    }
+  }
 
   // Find extreme points
   let topLeft = allPoints[0] || new paper.Point(0, 0);
