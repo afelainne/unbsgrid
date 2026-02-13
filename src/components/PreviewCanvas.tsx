@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import paper from 'paper';
 import { ZoomIn, ZoomOut, Maximize, RotateCcw, Move } from 'lucide-react';
 import { type ParsedSVG, type ClearspaceUnit, computeClearspace, getLogomarkSize, generateGridLines, collectPaths } from '@/lib/svg-engine';
-import type { GeometryOptions, GeometryStyles, CanvasBackground } from '@/pages/Index';
+import type { GeometryOptions, GeometryStyles, CanvasBackground } from '@/types/geometry';
 import {
   renderBoundingRects, renderCircles, renderCenterLines, renderDiagonals,
   renderGoldenRatio, renderTangentLines, renderGoldenSpiral, renderIsometricGrid,
@@ -15,7 +15,7 @@ import {
   renderParallelFlowLines, renderUnderlyingCircles, renderDominantDiagonals, renderCurvatureComb,
   renderSkeletonCenterline, renderConstructionGrid, renderPathDirectionArrows, renderTangentIntersections,
   renderAnchorPoints,
-} from '@/components/geometry-renderers';
+} from '@/components/renderers';
 import { Button } from '@/components/ui/button';
 
 interface PreviewCanvasProps {
