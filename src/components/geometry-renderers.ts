@@ -602,36 +602,44 @@ export function renderBezierHandles(
   // Prefer actual transformed paths from the render context (accurate positioning)
   if (context?.useRealData && context?.actualPaths && context.actualPaths.length > 0) {
     for (const path of context.actualPaths) {
-      if (!path.segments || path.segments.length === 0) continue;
-      for (const seg of path.segments) {
-        const pt = seg.point;
+      if (!path.curves || path.curves.length === 0) continue;
 
-        // Anchor point
+      // Use curves to get accurate handle positions
+      for (const curve of path.curves) {
+        const p1 = new paper.Point(curve.point1.x, curve.point1.y);
+        const p2 = new paper.Point(curve.point2.x, curve.point2.y);
+
+        // handleOut from first segment (relative to point1)
+        const h1 = curve.handle1;
+        if (h1 && (Math.abs(h1.x) > 0.1 || Math.abs(h1.y) > 0.1)) {
+          const hPt = new paper.Point(p1.x + h1.x, p1.y + h1.y);
+          const line = new paper.Path.Line(p1, hPt);
+          line.strokeColor = handleColor;
+          line.strokeWidth = style.strokeWidth * 0.6;
+          const hdot = new paper.Path.Circle(hPt, style.strokeWidth + 0.5);
+          hdot.fillColor = handleColor;
+          hdot.strokeColor = null;
+        }
+
+        // handleIn from second segment (relative to point2)
+        const h2 = curve.handle2;
+        if (h2 && (Math.abs(h2.x) > 0.1 || Math.abs(h2.y) > 0.1)) {
+          const hPt = new paper.Point(p2.x + h2.x, p2.y + h2.y);
+          const line = new paper.Path.Line(p2, hPt);
+          line.strokeColor = handleColor;
+          line.strokeWidth = style.strokeWidth * 0.6;
+          const hdot = new paper.Path.Circle(hPt, style.strokeWidth + 0.5);
+          hdot.fillColor = handleColor;
+          hdot.strokeColor = null;
+        }
+      }
+
+      // Draw anchor points on top
+      for (const seg of path.segments) {
+        const pt = new paper.Point(seg.point.x, seg.point.y);
         const dot = new paper.Path.Circle(pt, style.strokeWidth * 1.5 + 1);
         dot.fillColor = color;
         dot.strokeColor = null;
-
-        // Handle In
-        if (seg.handleIn && (seg.handleIn.x !== 0 || seg.handleIn.y !== 0)) {
-          const hPt = pt.add(seg.handleIn);
-          const line = new paper.Path.Line(pt, hPt);
-          line.strokeColor = handleColor;
-          line.strokeWidth = style.strokeWidth * 0.6;
-          const hdot = new paper.Path.Circle(hPt, style.strokeWidth + 0.5);
-          hdot.fillColor = handleColor;
-          hdot.strokeColor = null;
-        }
-
-        // Handle Out
-        if (seg.handleOut && (seg.handleOut.x !== 0 || seg.handleOut.y !== 0)) {
-          const hPt = pt.add(seg.handleOut);
-          const line = new paper.Path.Line(pt, hPt);
-          line.strokeColor = handleColor;
-          line.strokeWidth = style.strokeWidth * 0.6;
-          const hdot = new paper.Path.Circle(hPt, style.strokeWidth + 0.5);
-          hdot.fillColor = handleColor;
-          hdot.strokeColor = null;
-        }
       }
     }
     return;
