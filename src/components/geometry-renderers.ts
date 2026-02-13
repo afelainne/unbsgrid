@@ -1428,40 +1428,89 @@ export function renderFibonacciOverlay(
   style: StyleConfig,
   context?: RenderContext
 ) {
-  const color = hexToColor(style.color, style.opacity);
+  const dimColor = hexToColor(style.color, style.opacity * 0.5);
   const labelColor = hexToColor(style.color, style.opacity * 0.7);
 
-  const fibs = [1, 1, 2, 3, 5, 8, 13, 21];
-  const total = fibs.reduce((a, b) => a + b, 0);
-  const unitW = bounds.width / total;
+  // Fit a golden rectangle inside bounds
+  let w: number, h: number;
+  if (bounds.width / bounds.height >= PHI) {
+    h = bounds.height;
+    w = h * PHI;
+  } else {
+    w = bounds.width;
+    h = w / PHI;
+  }
 
-  let x = bounds.left;
-  fibs.forEach((fib, i) => {
-    const w = fib * unitW;
-    const h = w; // square-ish fibonacci rects
-    const y = bounds.center.y - h / 2;
+  let x = bounds.center.x - w / 2;
+  let y = bounds.center.y - h / 2;
 
+  // Outer golden rectangle
+  const outerRect = new paper.Path.Rectangle(
+    new paper.Point(x, y), new paper.Size(w, h)
+  );
+  showIfIntersects(outerRect, context, () => {
+    outerRect.strokeColor = dimColor;
+    outerRect.strokeWidth = style.strokeWidth * 0.7;
+    outerRect.fillColor = null;
+    outerRect.dashArray = [4, 3];
+  });
+
+  // Fibonacci sequence for labels
+  const fibs = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144];
+
+  // Subdivide into squares cycling LEFT → TOP → RIGHT → BOTTOM
+  for (let i = 0; i < 12; i++) {
+    const s = Math.min(w, h);
+    if (s < 0.5) break;
+
+    const dir = i % 4;
+    let sx: number, sy: number;
+
+    switch (dir) {
+      case 0: { // LEFT
+        sx = x; sy = y;
+        x += s; w -= s;
+        break;
+      }
+      case 1: { // TOP
+        sx = x; sy = y;
+        y += s; h -= s;
+        break;
+      }
+      case 2: { // RIGHT
+        sx = x + w - s; sy = y;
+        w -= s;
+        break;
+      }
+      case 3: { // BOTTOM
+        sx = x; sy = y + h - s;
+        h -= s;
+        break;
+      }
+      default: continue;
+    }
+
+    const rectColor = hexToColor(style.color, style.opacity * (0.3 + i * 0.06));
+    const fillC = hexToColor(style.color, style.opacity * 0.04);
     const rect = new paper.Path.Rectangle(
-      new paper.Point(x, y),
-      new paper.Point(x + w, y + h)
+      new paper.Point(sx, sy), new paper.Size(s, s)
     );
-    const rectColor = hexToColor(style.color, style.opacity * (0.3 + i * 0.08));
     showIfIntersects(rect, context, () => {
       rect.strokeColor = rectColor;
       rect.strokeWidth = style.strokeWidth;
-      rect.fillColor = hexToColor(style.color, style.opacity * 0.03);
+      rect.fillColor = fillC;
 
-      if (w > 12) {
-        const label = new paper.PointText(new paper.Point(x + w / 2, y + h / 2 + 3));
-        label.content = String(fib);
+      if (s > 10 && i < fibs.length) {
+        const label = new paper.PointText(
+          new paper.Point(sx + s / 2, sy + s / 2 + 3)
+        );
+        label.content = String(fibs[i]);
         label.fillColor = labelColor;
-        label.fontSize = Math.min(9, w * 0.4);
+        label.fontSize = Math.max(6, Math.min(12, s * 0.25));
         label.justification = 'center';
       }
     });
-
-    x += w;
-  });
+  }
 }
 
 export function renderKenBurnsSafe(
