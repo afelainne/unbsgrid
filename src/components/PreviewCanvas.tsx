@@ -190,7 +190,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
     // Geometry renderers - each wrapped in try/catch to prevent cascading failures
     const s = geometryStyles;
-    const renderContext = { actualPaths, useRealData: useRealDataInterpretation };
+    const renderContext = { actualPaths, useRealData: useRealDataInterpretation, contentBounds: useRealDataInterpretation && actualPaths.length > 0 ? (() => { let b = actualPaths[0].bounds.clone(); for (let i = 1; i < actualPaths.length; i++) b = b.unite(actualPaths[i].bounds); return b; })() : undefined };
     const safe = (fn: () => void) => { try { fn(); } catch { /* skip broken renderer */ } };
 
     if (geometryOptions.boundingRects) safe(() => renderBoundingRects(bounds, scaledCompBounds, s.boundingRects, renderContext));
