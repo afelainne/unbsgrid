@@ -54,19 +54,16 @@ const SVGDropZone: React.FC<SVGDropZoneProps> = ({ onSVGLoaded }) => {
       onDragLeave={handleDragLeave}
       onClick={handleClick}
       className={`
-        flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed 
-        cursor-pointer transition-all duration-200 p-12
+        flex items-center justify-center gap-2 rounded-md border border-dashed 
+        cursor-pointer transition-all duration-200 px-3 py-2
         ${isDragging 
           ? 'border-primary bg-primary/10' 
           : 'border-border hover:border-muted-foreground hover:bg-surface-hover'
         }
       `}
     >
-      <Upload className="h-10 w-10 text-muted-foreground" />
-      <div className="text-center">
-        <p className="text-sm font-medium text-foreground">Drop your SVG logo here</p>
-        <p className="text-xs text-muted-foreground mt-1">or click to browse files</p>
-      </div>
+      <Upload className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+      <span className="text-[10px] text-muted-foreground">Drop SVG or click to upload</span>
     </div>
   );
 };
