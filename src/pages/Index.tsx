@@ -11,6 +11,7 @@ import {
   Hexagon,
   Palette,
   RotateCcw,
+  X,
 } from "lucide-react";
 import SVGDropZone from "@/components/SVGDropZone";
 import PreviewCanvas from "@/components/PreviewCanvas";
@@ -272,6 +273,74 @@ const Index = () => {
     Harmony: false,
     "Grid & Output": false,
   });
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    svgColor: true,
+    svgOutline: true,
+    interpretation: true,
+    canvas: true,
+    clearspace: true,
+    constructionGrid: true,
+    constructionGeometry: true,
+  });
+
+  const toggleSection = (key: string) =>
+    setOpenSections((p) => ({ ...p, [key]: !p[key] }));
+
+  const resetSvgColor = useCallback(() => {
+    setSvgColorOverride(null);
+    setOpenSections((p) => ({ ...p, svgColor: false }));
+  }, []);
+
+  const resetSvgOutline = useCallback(() => {
+    setSvgOutlineMode(false);
+    setSvgOutlineWidth(1);
+    setSvgOutlineDash([]);
+    setSvgOutlineLineCap('butt');
+    setOpenSections((p) => ({ ...p, svgOutline: false }));
+  }, []);
+
+  const resetInterpretation = useCallback(() => {
+    setUseRealDataInterpretation(true);
+    setOpenSections((p) => ({ ...p, interpretation: false }));
+  }, []);
+
+  const resetCanvas = useCallback(() => {
+    setCanvasBackground('dark');
+    setOpenSections((p) => ({ ...p, canvas: false }));
+  }, []);
+
+  const resetClearspace = useCallback(() => {
+    setClearspaceValue(1);
+    setClearspaceUnit('logomark');
+    setOpenSections((p) => ({ ...p, clearspace: false }));
+  }, []);
+
+  const resetConstructionGrid = useCallback(() => {
+    setShowGrid(false);
+    setGridSubdivisions(8);
+    setIsInverted(false);
+    setOpenSections((p) => ({ ...p, constructionGrid: false }));
+  }, []);
+
+  const resetConstructionGeometry = useCallback(() => {
+    setGeometryOptions({
+      boundingRects: false, circles: false, diagonals: false, goldenRatio: false,
+      centerLines: false, tangentLines: false, goldenSpiral: false, isometricGrid: false,
+      bezierHandles: false, typographicProportions: false, thirdLines: false,
+      symmetryAxes: false, angleMeasurements: false, spacingGuides: false,
+      rootRectangles: false, modularScale: false, alignmentGuides: false,
+      safeZone: false, pixelGrid: false, opticalCenter: false, contrastGuide: false,
+      dynamicBaseline: false, fibonacciOverlay: false, kenBurnsSafe: false,
+      componentRatioLabels: false, vesicaPiscis: false, ruleOfOdds: false,
+      visualWeightMap: false, anchoringPoints: false, harmonicDivisions: false,
+      parallelFlowLines: false, underlyingCircles: false, dominantDiagonals: false,
+      curvatureComb: false, skeletonCenterline: false, constructionGrid: false,
+      pathDirectionArrows: false, tangentIntersections: false, anchorPoints: false,
+    });
+    setGeometryStyles({ ...defaultStyles });
+    setOpenGroups({ Advanced: false, Basic: false, Proportions: false, Measurement: false, Harmony: false, 'Grid & Output': false });
+    setOpenSections((p) => ({ ...p, constructionGeometry: false }));
+  }, []);
   const [presets, setPresets] = useState<GeometryPreset[]>([]);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
@@ -509,14 +578,22 @@ const Index = () => {
           <Separator className="bg-sidebar-border" />
 
           {/* SVG Color Override */}
+          <Collapsible open={openSections.svgColor} onOpenChange={() => toggleSection('svgColor')}>
           <section>
             <div className="flex items-center gap-1.5 mb-2">
-              <Palette className="h-3 w-3 text-muted-foreground" />
-              <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider">
-                SVG Color
-              </Label>
+              <CollapsibleTrigger className="flex items-center gap-1.5 hover:text-foreground transition-colors">
+                {openSections.svgColor ? <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" /> : <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />}
+                <Palette className="h-3 w-3 text-muted-foreground" />
+                <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider cursor-pointer">
+                  SVG Color
+                </Label>
+              </CollapsibleTrigger>
               <InfoTooltip content="Altere a cor de todos os caminhos do SVG importado. Útil para testar o logo em diferentes cores ou verificar como ele funciona em monocromático." />
+              <button onClick={resetSvgColor} className="ml-auto text-muted-foreground hover:text-foreground transition-colors" title="Resetar SVG Color">
+                <RotateCcw className="h-3 w-3" />
+              </button>
             </div>
+            <CollapsibleContent>
             <div className="flex items-center gap-1.5 flex-wrap">
               {[
                 { name: "Black", color: "#000000" },
@@ -588,19 +665,29 @@ const Index = () => {
                 className="h-6 mt-1.5 bg-input border-border text-foreground text-[10px] font-mono"
               />
             )}
+            </CollapsibleContent>
           </section>
+          </Collapsible>
 
           <Separator className="bg-sidebar-border" />
 
           {/* SVG Outline Mode */}
+          <Collapsible open={openSections.svgOutline} onOpenChange={() => toggleSection('svgOutline')}>
           <section>
             <div className="flex items-center gap-1.5 mb-2">
-              <Layers className="h-3 w-3 text-muted-foreground" />
-              <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider">
-                SVG Outline
-              </Label>
+              <CollapsibleTrigger className="flex items-center gap-1.5 hover:text-foreground transition-colors">
+                {openSections.svgOutline ? <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" /> : <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />}
+                <Layers className="h-3 w-3 text-muted-foreground" />
+                <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider cursor-pointer">
+                  SVG Outline
+                </Label>
+              </CollapsibleTrigger>
               <InfoTooltip content="Converte o SVG para modo outline, removendo o preenchimento e mostrando apenas os contornos dos caminhos vetoriais. Útil para analisar a estrutura do logo." />
+              <button onClick={resetSvgOutline} className="ml-auto text-muted-foreground hover:text-foreground transition-colors" title="Resetar SVG Outline">
+                <RotateCcw className="h-3 w-3" />
+              </button>
             </div>
+            <CollapsibleContent>
             <div className="flex items-center gap-2 mb-2">
               <Switch
                 id="svg-outline"
@@ -665,34 +752,29 @@ const Index = () => {
                 </div>
               </div>
             )}
+            </CollapsibleContent>
           </section>
+          </Collapsible>
 
           <Separator className="bg-sidebar-border" />
 
-          {/* Reset SVG Modifications */}
-          {(svgColorOverride || svgOutlineMode) && (
-            <section>
-              <button
-                onClick={handleResetSvgModifications}
-                className="w-full flex items-center justify-center gap-1.5 h-7 rounded text-[10px] text-muted-foreground hover:text-foreground border border-border/60 hover:border-foreground/40 transition-all"
-              >
-                <RotateCcw className="h-3 w-3" />
-                Resetar modificações SVG
-              </button>
-            </section>
-          )}
-
-          {(svgColorOverride || svgOutlineMode) && <Separator className="bg-sidebar-border" />}
-
           {/* Real Data Interpretation */}
+          <Collapsible open={openSections.interpretation} onOpenChange={() => toggleSection('interpretation')}>
           <section>
             <div className="flex items-center gap-1.5 mb-2">
-              <Shield className="h-3 w-3 text-muted-foreground" />
-              <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider">
-                Interpretation Mode
-              </Label>
+              <CollapsibleTrigger className="flex items-center gap-1.5 hover:text-foreground transition-colors">
+                {openSections.interpretation ? <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" /> : <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />}
+                <Shield className="h-3 w-3 text-muted-foreground" />
+                <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider cursor-pointer">
+                  Interpretation Mode
+                </Label>
+              </CollapsibleTrigger>
               <InfoTooltip content="Quando ativado, as ferramentas de geometria apenas mostram guias que realmente intersectam com os caminhos vetoriais do SVG. Isso garante que as guias estejam analisando dados reais e não apenas sobrepostas às caixas delimitadoras." />
+              <button onClick={resetInterpretation} className="ml-auto text-muted-foreground hover:text-foreground transition-colors" title="Resetar Interpretation Mode">
+                <RotateCcw className="h-3 w-3" />
+              </button>
             </div>
+            <CollapsibleContent>
             <div className="flex items-center gap-2">
               <Switch
                 id="use-real-data"
@@ -703,7 +785,9 @@ const Index = () => {
                 {useRealDataInterpretation ? "Interpretar dados reais (SVG vetorial)" : "Modo overlay (caixas delimitadoras)"}
               </Label>
             </div>
+            </CollapsibleContent>
           </section>
+          </Collapsible>
 
           <Separator className="bg-sidebar-border" />
 
@@ -721,14 +805,22 @@ const Index = () => {
           <Separator className="bg-sidebar-border" />
 
           {/* Canvas Background */}
+          <Collapsible open={openSections.canvas} onOpenChange={() => toggleSection('canvas')}>
           <section>
             <div className="flex items-center gap-1.5 mb-3">
-              <Hexagon className="h-3 w-3 text-muted-foreground" />
-              <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider">
-                Canvas
-              </Label>
+              <CollapsibleTrigger className="flex items-center gap-1.5 hover:text-foreground transition-colors">
+                {openSections.canvas ? <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" /> : <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />}
+                <Hexagon className="h-3 w-3 text-muted-foreground" />
+                <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider cursor-pointer">
+                  Canvas
+                </Label>
+              </CollapsibleTrigger>
               <InfoTooltip content="Controle o fundo do canvas de visualização. Use 'Checkerboard' para simular transparência, 'Light' para fundos claros e 'Dark' para fundos escuros." />
+              <button onClick={resetCanvas} className="ml-auto text-muted-foreground hover:text-foreground transition-colors" title="Resetar Canvas">
+                <RotateCcw className="h-3 w-3" />
+              </button>
             </div>
+            <CollapsibleContent>
             <div className="space-y-3">
               <div>
                 <Label className="text-[10px] text-muted-foreground mb-1 block">Background</Label>
@@ -744,19 +836,29 @@ const Index = () => {
                 </Select>
               </div>
             </div>
+            </CollapsibleContent>
           </section>
+          </Collapsible>
 
           <Separator className="bg-sidebar-border" />
 
           {/* Clearspace */}
+          <Collapsible open={openSections.clearspace} onOpenChange={() => toggleSection('clearspace')}>
           <section>
             <div className="flex items-center gap-1.5 mb-3">
-              <Shield className="h-3 w-3 text-muted-foreground" />
-              <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider">
-                Clearspace
-              </Label>
+              <CollapsibleTrigger className="flex items-center gap-1.5 hover:text-foreground transition-colors">
+                {openSections.clearspace ? <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" /> : <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />}
+                <Shield className="h-3 w-3 text-muted-foreground" />
+                <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider cursor-pointer">
+                  Clearspace
+                </Label>
+              </CollapsibleTrigger>
               <InfoTooltip content="Clearspace (zona de proteção) é a área mínima ao redor do logo onde nenhum outro elemento gráfico deve aparecer. O valor 'X' define a distância em unidades selecionadas. Quanto maior o valor, mais espaço livre ao redor." />
+              <button onClick={resetClearspace} className="ml-auto text-muted-foreground hover:text-foreground transition-colors" title="Resetar Clearspace">
+                <RotateCcw className="h-3 w-3" />
+              </button>
             </div>
+            <CollapsibleContent>
             <div className="space-y-3">
               <div>
                 <Label className="text-[10px] text-muted-foreground mb-1 block">Value</Label>
@@ -774,19 +876,29 @@ const Index = () => {
                 <UnitSelector value={clearspaceUnit} onChange={setClearspaceUnit} />
               </div>
             </div>
+            </CollapsibleContent>
           </section>
+          </Collapsible>
 
           <Separator className="bg-sidebar-border" />
 
           {/* Construction Grid */}
+          <Collapsible open={openSections.constructionGrid} onOpenChange={() => toggleSection('constructionGrid')}>
           <section>
             <div className="flex items-center gap-1.5 mb-3">
-              <Grid3X3 className="h-3 w-3 text-muted-foreground" />
-              <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider">
-                Construction Grid
-              </Label>
+              <CollapsibleTrigger className="flex items-center gap-1.5 hover:text-foreground transition-colors">
+                {openSections.constructionGrid ? <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" /> : <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />}
+                <Grid3X3 className="h-3 w-3 text-muted-foreground" />
+                <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider cursor-pointer">
+                  Construction Grid
+                </Label>
+              </CollapsibleTrigger>
               <InfoTooltip content="Gera uma grade modular baseada nas proporções do logomark. Útil para alinhar elementos em layouts. As subdivisões controlam a densidade da grade." />
+              <button onClick={resetConstructionGrid} className="ml-auto text-muted-foreground hover:text-foreground transition-colors" title="Resetar Construction Grid">
+                <RotateCcw className="h-3 w-3" />
+              </button>
             </div>
+            <CollapsibleContent>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-[10px] text-foreground">Show Grid</Label>
@@ -815,19 +927,29 @@ const Index = () => {
                 </>
               )}
             </div>
+            </CollapsibleContent>
           </section>
+          </Collapsible>
 
           <Separator className="bg-sidebar-border" />
 
           {/* Construction Geometry */}
+          <Collapsible open={openSections.constructionGeometry} onOpenChange={() => toggleSection('constructionGeometry')}>
           <section>
             <div className="flex items-center gap-1.5 mb-3">
-              <Layers className="h-3 w-3 text-muted-foreground" />
-              <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider">
-                Construction Geometry
-              </Label>
+              <CollapsibleTrigger className="flex items-center gap-1.5 hover:text-foreground transition-colors">
+                {openSections.constructionGeometry ? <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" /> : <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />}
+                <Layers className="h-3 w-3 text-muted-foreground" />
+                <Label className="text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider cursor-pointer">
+                  Construction Geometry
+                </Label>
+              </CollapsibleTrigger>
               <InfoTooltip content="Sobreposições geométricas de construção para análise visual do logo. Cada camada pode ter cor, opacidade e espessura de traço personalizados. Ative múltiplas camadas para uma análise completa." />
+              <button onClick={resetConstructionGeometry} className="ml-auto text-muted-foreground hover:text-foreground transition-colors" title="Resetar Construction Geometry">
+                <RotateCcw className="h-3 w-3" />
+              </button>
             </div>
+            <CollapsibleContent>
             <div className="space-y-1">
               {geometryGroups.map((group) => (
                 <Collapsible
@@ -944,7 +1066,9 @@ const Index = () => {
                 </Collapsible>
               ))}
             </div>
+            </CollapsibleContent>
           </section>
+          </Collapsible>
         </div>
 
         <div className="px-4 py-3 border-t border-sidebar-border space-y-2">
