@@ -1,4 +1,4 @@
-import type { GeometryOptions, GeometryStyles } from '@/pages/Index';
+import type { GeometryOptions, GeometryStyles } from '@/types/geometry';
 import type { ClearspaceUnit } from '@/lib/svg-engine';
 
 export interface GeometryPreset {

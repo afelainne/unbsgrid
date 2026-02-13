@@ -38,59 +38,8 @@ import PresetManager from "@/components/PresetManager";
 import SavePresetDialog from "@/components/SavePresetDialog";
 import LoadPresetDialog from "@/components/LoadPresetDialog";
 
-export interface GeometryOptions {
-  boundingRects: boolean;
-  circles: boolean;
-  diagonals: boolean;
-  goldenRatio: boolean;
-  centerLines: boolean;
-  tangentLines: boolean;
-  goldenSpiral: boolean;
-  isometricGrid: boolean;
-  bezierHandles: boolean;
-  typographicProportions: boolean;
-  thirdLines: boolean;
-  symmetryAxes: boolean;
-  angleMeasurements: boolean;
-  spacingGuides: boolean;
-  rootRectangles: boolean;
-  modularScale: boolean;
-  alignmentGuides: boolean;
-  safeZone: boolean;
-  pixelGrid: boolean;
-  opticalCenter: boolean;
-  contrastGuide: boolean;
-  dynamicBaseline: boolean;
-  fibonacciOverlay: boolean;
-  kenBurnsSafe: boolean;
-  componentRatioLabels: boolean;
-  // Batch 3
-  vesicaPiscis: boolean;
-  ruleOfOdds: boolean;
-  visualWeightMap: boolean;
-  anchoringPoints: boolean;
-  harmonicDivisions: boolean;
-  // Advanced SVG Analysis
-  parallelFlowLines: boolean;
-  underlyingCircles: boolean;
-  dominantDiagonals: boolean;
-  curvatureComb: boolean;
-  skeletonCenterline: boolean;
-  constructionGrid: boolean;
-  pathDirectionArrows: boolean;
-  tangentIntersections: boolean;
-  anchorPoints: boolean;
-}
-
-export interface GeometryStyle {
-  color: string;
-  opacity: number;
-  strokeWidth: number;
-}
-
-export type GeometryStyles = Record<keyof GeometryOptions, GeometryStyle>;
-
-export type CanvasBackground = "dark" | "light" | "checkerboard";
+export type { GeometryOptions, GeometryStyle, GeometryStyles, CanvasBackground } from '@/types/geometry';
+import type { GeometryOptions, GeometryStyle, GeometryStyles, CanvasBackground } from '@/types/geometry';
 
 const defaultStyles: GeometryStyles = {
   boundingRects: { color: "#d94040", opacity: 0.6, strokeWidth: 1 },
