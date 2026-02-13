@@ -2682,46 +2682,38 @@ export function renderAnchorPoints(
   if (!context?.useRealData || !context?.actualPaths || context.actualPaths.length === 0) return;
 
   const color = hexToColor(style.color, style.opacity);
-  const handleColor = hexToColor(style.color, style.opacity * 0.4);
   const paths = context.actualPaths;
+  let totalPoints = 0;
+  let smoothCount = 0;
+  let cornerCount = 0;
 
   for (const path of paths) {
     if (!path.segments || path.segments.length === 0) continue;
 
-    for (const seg of path.segments) {
-      const pt = seg.point;
+    // Draw thin path outline to show connectivity
+    const outline = path.clone() as paper.Path;
+    outline.strokeColor = hexToColor(style.color, style.opacity * 0.2);
+    outline.strokeWidth = style.strokeWidth * 0.3;
+    outline.fillColor = null;
+    outline.dashArray = [2, 2];
 
-      // Draw handle lines if they exist
-      if (seg.handleIn && (seg.handleIn.x !== 0 || seg.handleIn.y !== 0)) {
-        const hIn = pt.add(seg.handleIn);
-        const handleLine = new paper.Path.Line(pt, hIn);
-        handleLine.strokeColor = handleColor;
-        handleLine.strokeWidth = style.strokeWidth * 0.4;
-        const handleDot = new paper.Path.Circle(hIn, pointSize * 0.5);
-        handleDot.fillColor = handleColor;
-        handleDot.strokeColor = null;
-      }
-      if (seg.handleOut && (seg.handleOut.x !== 0 || seg.handleOut.y !== 0)) {
-        const hOut = pt.add(seg.handleOut);
-        const handleLine = new paper.Path.Line(pt, hOut);
-        handleLine.strokeColor = handleColor;
-        handleLine.strokeWidth = style.strokeWidth * 0.4;
-        const handleDot = new paper.Path.Circle(hOut, pointSize * 0.5);
-        handleDot.fillColor = handleColor;
-        handleDot.strokeColor = null;
-      }
+    for (const seg of path.segments) {
+      const pt = new paper.Point(seg.point.x, seg.point.y);
+      totalPoints++;
 
       // Determine if this is a corner or smooth point
-      const hasHandles = (seg.handleIn && (seg.handleIn.x !== 0 || seg.handleIn.y !== 0)) ||
-                          (seg.handleOut && (seg.handleOut.x !== 0 || seg.handleOut.y !== 0));
+      const hasHandles = (seg.handleIn && (Math.abs(seg.handleIn.x) > 0.1 || Math.abs(seg.handleIn.y) > 0.1)) ||
+                          (seg.handleOut && (Math.abs(seg.handleOut.x) > 0.1 || Math.abs(seg.handleOut.y) > 0.1));
 
       if (hasHandles) {
+        smoothCount++;
         // Smooth point: circle
         const dot = new paper.Path.Circle(pt, pointSize);
         dot.fillColor = color;
         dot.strokeColor = hexToColor('#ffffff', style.opacity * 0.8);
         dot.strokeWidth = style.strokeWidth * 0.3;
       } else {
+        cornerCount++;
         // Corner point: square
         const half = pointSize;
         const sq = new paper.Path.Rectangle(
@@ -2732,5 +2724,14 @@ export function renderAnchorPoints(
         sq.strokeWidth = style.strokeWidth * 0.3;
       }
     }
+  }
+
+  // Summary label
+  if (totalPoints > 0) {
+    const label = new paper.PointText(new paper.Point(bounds.right + 8, bounds.top + 12));
+    label.content = `${totalPoints} pts (${smoothCount}○ ${cornerCount}□)`;
+    label.fillColor = color;
+    label.fontSize = 9;
+    label.fontWeight = 'bold';
   }
 }
