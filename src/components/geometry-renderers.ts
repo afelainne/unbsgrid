@@ -1070,7 +1070,7 @@ export function renderRootRectangles(
   style: StyleConfig,
   context?: RenderContext
 ) {
-  const eb = getEffectiveBounds(bounds, context);
+  const eb = bounds;
   const actualRatio = eb.width / eb.height;
 
   const roots = [
@@ -1082,63 +1082,71 @@ export function renderRootRectangles(
   const cx = eb.center.x;
   const cy = eb.center.y;
 
+  let bestScore = Infinity;
   roots.forEach((root) => {
-    const ratioLandscape = root.value;
-    const ratioPortrait = 1 / root.value;
-    const diffLandscape = Math.abs(actualRatio - ratioLandscape);
-    const diffPortrait = Math.abs(actualRatio - ratioPortrait);
-    const bestDiff = Math.min(diffLandscape, diffPortrait);
-    const usePortrait = diffPortrait < diffLandscape;
+    const diffL = Math.abs(actualRatio - root.value);
+    const diffP = Math.abs(actualRatio - 1 / root.value);
+    const best = Math.min(diffL, diffP);
+    if (best < bestScore) bestScore = best;
+  });
 
-    const closeness = bestDiff / Math.max(ratioLandscape, 1);
-    const opacity = closeness < 0.05 ? 1.0 : closeness < 0.15 ? 0.7 : closeness < 0.4 ? 0.45 : 0.25;
-    const sw = closeness < 0.05 ? style.strokeWidth * 2 : closeness < 0.15 ? style.strokeWidth * 1.3 : style.strokeWidth;
+  roots.forEach((root) => {
+    const ratioL = root.value;
+    const ratioP = 1 / root.value;
+    const diffL = Math.abs(actualRatio - ratioL);
+    const diffP = Math.abs(actualRatio - ratioP);
+    const bestDiff = Math.min(diffL, diffP);
+    const usePortrait = diffP < diffL;
+    const targetRatio = usePortrait ? ratioP : ratioL;
+
+    const matchPct = Math.max(0, (1 - Math.abs(actualRatio - targetRatio) / actualRatio) * 100);
 
     let rw: number, rh: number;
-    if (usePortrait) {
-      rh = eb.height;
-      rw = rh / root.value;
-    } else {
+    if (targetRatio >= 1) {
       rw = eb.width;
-      rh = rw / root.value;
+      rh = rw / targetRatio;
+      if (rh > eb.height) { rh = eb.height; rw = rh * targetRatio; }
+    } else {
+      rh = eb.height;
+      rw = rh * targetRatio;
+      if (rw > eb.width) { rw = eb.width; rh = rw / targetRatio; }
     }
+
+    const isGoodMatch = matchPct > 90;
+    const isDecentMatch = matchPct > 75;
+    const opacity = isGoodMatch ? 1.0 : isDecentMatch ? 0.6 : 0.3;
+    const sw = isGoodMatch ? style.strokeWidth * 2.5 : isDecentMatch ? style.strokeWidth * 1.2 : style.strokeWidth * 0.7;
 
     const color = hexToColor(style.color, style.opacity * opacity);
     const rect = new paper.Path.Rectangle(
       new paper.Point(cx - rw / 2, cy - rh / 2),
-      new paper.Point(cx + rw / 2, cy + rh / 2)
+      new paper.Size(rw, rh)
     );
     showIfIntersects(rect, context, () => {
       rect.strokeColor = color;
       rect.strokeWidth = sw;
-      rect.fillColor = null;
-      rect.dashArray = closeness < 0.05 ? [] : [8, 4];
+      rect.fillColor = isGoodMatch ? hexToColor(style.color, style.opacity * 0.04) : null;
+      rect.dashArray = isGoodMatch ? [] : [6, 4];
 
-      const matchPct = Math.max(0, (1 - bestDiff / Math.max(actualRatio, 1 / actualRatio)) * 100);
-      const labelText = closeness < 0.05
+      const labelX = cx + rw / 2 - 4;
+      const labelY = cy - rh / 2 + 12;
+      const labelStr = isGoodMatch
         ? `${root.name} ✓ ${matchPct.toFixed(0)}%`
-        : `${root.name} (${matchPct.toFixed(0)}%)`;
-      const label = new paper.PointText(new paper.Point(cx + rw / 2 + 6, cy - rh / 2 + 10));
-      label.content = labelText;
+        : `${root.name} ${matchPct.toFixed(0)}%`;
+      const label = new paper.PointText(new paper.Point(labelX, labelY));
+      label.content = labelStr;
       label.fillColor = color;
-      label.fontSize = closeness < 0.05 ? 10 : 8;
-      label.fontWeight = closeness < 0.05 ? 'bold' : 'normal';
+      label.fontSize = isGoodMatch ? 11 : 8;
+      label.fontWeight = isGoodMatch ? 'bold' : 'normal';
+      label.justification = 'right';
     });
   });
 
-  if (context?.useRealData && context?.contentBounds) {
-    const refRect = new paper.Path.Rectangle(eb);
-    const refColor = hexToColor(style.color, style.opacity * 0.3);
-    refRect.strokeColor = refColor;
-    refRect.strokeWidth = style.strokeWidth * 0.5;
-    refRect.fillColor = null;
-    refRect.dashArray = [2, 2];
-
-    const ratioLabel = new paper.PointText(new paper.Point(eb.right + 6, eb.bottom - 4));
-    ratioLabel.content = `ratio: ${actualRatio.toFixed(3)}`;
-    ratioLabel.fillColor = refColor;
-    ratioLabel.fontSize = 7;
-  }
+  const ratioLabel = new paper.PointText(new paper.Point(cx, eb.bottom + 14));
+  ratioLabel.content = `Aspect ratio: ${actualRatio.toFixed(3)}:1`;
+  ratioLabel.fillColor = hexToColor(style.color, style.opacity * 0.5);
+  ratioLabel.fontSize = 8;
+  ratioLabel.justification = 'center';
 }
 
 export function renderModularScale(
@@ -1147,69 +1155,53 @@ export function renderModularScale(
   ratio: number = 1.618,
   context?: RenderContext
 ) {
-  const eb = getEffectiveBounds(bounds, context);
-
-  let cx: number, cy: number;
-  if (context?.useRealData && context?.actualPaths && context.actualPaths.length > 0) {
-    const centroid = computeVisualCentroid(context.actualPaths);
-    cx = centroid.x;
-    cy = centroid.y;
-  } else {
-    cx = eb.center.x;
-    cy = eb.center.y;
-  }
+  const eb = bounds;
+  const cx = eb.center.x;
+  const cy = eb.center.y;
 
   const minDim = Math.min(eb.width, eb.height);
-  const maxDim = Math.max(eb.width, eb.height);
+  const diagonal = Math.sqrt(eb.width * eb.width + eb.height * eb.height);
+  const inscribed = minDim / 2;
 
-  let baseRadius: number;
-  if (context?.useRealData && context?.actualPaths && context.actualPaths.length > 0) {
-    let minDist = Infinity;
-    for (const p of context.actualPaths) {
-      const nearest = p.getNearestPoint(new paper.Point(cx, cy));
-      const d = nearest.getDistance(new paper.Point(cx, cy));
-      if (d > 0 && d < minDist) minDist = d;
-    }
-    baseRadius = minDist > 0 && minDist < minDim ? minDist : minDim * 0.08;
-  } else {
-    baseRadius = minDim * 0.08;
-  }
+  const targetSteps = 6;
+  const baseRadius = inscribed / Math.pow(ratio, targetSteps - 1);
+  const maxRadius = diagonal / 2;
 
-  if (context?.useRealData) {
-    const marker = new paper.Path.Circle(new paper.Point(cx, cy), 3);
-    marker.fillColor = hexToColor(style.color, style.opacity * 0.8);
-    marker.strokeColor = null;
-  }
+  // Center marker / crosshair
+  const hLine = new paper.Path.Line(
+    new paper.Point(cx - 6, cy),
+    new paper.Point(cx + 6, cy)
+  );
+  hLine.strokeColor = hexToColor(style.color, style.opacity * 0.8);
+  hLine.strokeWidth = 1;
+  const vLine = new paper.Path.Line(
+    new paper.Point(cx, cy - 6),
+    new paper.Point(cx, cy + 6)
+  );
+  vLine.strokeColor = hexToColor(style.color, style.opacity * 0.8);
+  vLine.strokeWidth = 1;
 
   for (let i = 0; i < 10; i++) {
     const r = baseRadius * Math.pow(ratio, i);
-    if (r > maxDim * 2) break;
+    if (r > maxRadius) break;
+
+    const beyondContent = r > inscribed;
+    const opacity = beyondContent ? 0.25 : 1 - i * 0.08;
 
     const circle = new paper.Path.Circle(new paper.Point(cx, cy), r);
-    const circleColor = hexToColor(style.color, style.opacity * (1 - i * 0.08));
-
-    let pathCount = 0;
-    if (context?.useRealData && context?.actualPaths) {
-      for (const p of context.actualPaths) {
-        if (circle.getIntersections(p as any).length > 0) pathCount++;
-      }
-    }
-
-    const isSignificant = pathCount > 0;
-
     showIfIntersects(circle, context, () => {
-      circle.strokeColor = circleColor;
-      circle.strokeWidth = isSignificant ? style.strokeWidth * 1.5 : style.strokeWidth;
+      circle.strokeColor = hexToColor(style.color, style.opacity * opacity);
+      circle.strokeWidth = beyondContent ? style.strokeWidth * 0.6 : style.strokeWidth;
       circle.fillColor = null;
-      circle.dashArray = isSignificant ? [] : [4, 4];
+      circle.dashArray = beyondContent ? [3, 5] : [4, 4];
 
-      if (r > 15) {
-        const labelText = context?.useRealData && pathCount > 0
-          ? `×${ratio.toFixed(2)}^${i} (${pathCount})`
-          : `×${ratio.toFixed(3)}^${i}`;
-        const label = new paper.PointText(new paper.Point(cx + r + 5, cy - 3));
-        label.content = labelText;
-        label.fillColor = hexToColor(style.color, style.opacity * 0.7);
+      if (r > 12) {
+        const angle = Math.PI / 4;
+        const lx = cx + r * Math.cos(angle) + 3;
+        const ly = cy - r * Math.sin(angle) - 3;
+        const label = new paper.PointText(new paper.Point(lx, ly));
+        label.content = `×${ratio.toFixed(2)}^${i}`;
+        label.fillColor = hexToColor(style.color, style.opacity * opacity * 0.8);
         label.fontSize = 8;
       }
     });
@@ -1282,7 +1274,7 @@ export function renderSafeZone(
   margin: number = 0.1,
   context?: RenderContext
 ) {
-  const eb = getEffectiveBounds(bounds, context);
+  const eb = bounds;
   const color = hexToColor(style.color, style.opacity);
   const fillColor = hexToColor(style.color, style.opacity * 0.06);
   const insetX = eb.width * margin;
@@ -1296,6 +1288,13 @@ export function renderSafeZone(
   safeRect.strokeWidth = style.strokeWidth * 1.5;
   safeRect.fillColor = null;
   safeRect.dashArray = [8, 4];
+
+  // margin dimension label
+  const dimLabel = new paper.PointText(new paper.Point(eb.left + insetX / 2, eb.top + insetY / 2));
+  dimLabel.content = `${insetX.toFixed(0)}px`;
+  dimLabel.fillColor = hexToColor(style.color, style.opacity * 0.5);
+  dimLabel.fontSize = 7;
+  dimLabel.justification = 'center';
 
   const outerRects = [
     [eb.left, eb.top, eb.right, eb.top + insetY],
@@ -1326,7 +1325,7 @@ export function renderSafeZone(
     const fitsInside = cb.left >= safeL && cb.top >= safeT && cb.right <= safeR && cb.bottom <= safeB;
 
     const statusLabel = new paper.PointText(new paper.Point(eb.left + insetX + 4, eb.top + insetY + 12));
-    statusLabel.content = fitsInside ? 'SAFE ZONE ✓' : `SAFE ZONE ✗ (${bleedCount} bleeds)`;
+    statusLabel.content = fitsInside ? 'SAFE ZONE ✓' : `SAFE ZONE ✗ (${bleedCount}/4 bleeds)`;
     statusLabel.fillColor = fitsInside ? hexToColor('#22cc44', style.opacity * 0.8) : hexToColor('#ff4444', style.opacity * 0.8);
     statusLabel.fontSize = 8;
     statusLabel.fontWeight = 'bold';
@@ -1550,11 +1549,14 @@ export function renderFibonacciOverlay(
   style: StyleConfig,
   context?: RenderContext
 ) {
-  const eb = getEffectiveBounds(bounds, context);
+  const eb = bounds;
   const dimColor = hexToColor(style.color, style.opacity * 0.5);
   const labelColor = hexToColor(style.color, style.opacity * 0.7);
 
-  // Fit a golden rectangle inside the effective content bounds
+  const MAX_SQUARES = 8;
+  const fibSeq = [1, 1, 2, 3, 5, 8, 13, 21];
+
+  // Fit a golden rectangle inside the content bounds
   let w: number, h: number;
   if (eb.width / eb.height >= PHI) {
     h = eb.height;
@@ -1571,18 +1573,16 @@ export function renderFibonacciOverlay(
   const outerRect = new paper.Path.Rectangle(
     new paper.Point(x, y), new paper.Size(w, h)
   );
-  showIfIntersects(outerRect, context, () => {
-    outerRect.strokeColor = dimColor;
-    outerRect.strokeWidth = style.strokeWidth * 0.7;
-    outerRect.fillColor = null;
-    outerRect.dashArray = [4, 3];
-  });
+  outerRect.strokeColor = dimColor;
+  outerRect.strokeWidth = style.strokeWidth * 0.7;
+  outerRect.fillColor = null;
+  outerRect.dashArray = [4, 3];
 
-  // First pass: compute all square positions to know the count
+  // Compute all square positions
   const squares: { sx: number; sy: number; s: number }[] = [];
   {
     let tw = w, th = h, tx = x, ty = y;
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < MAX_SQUARES; i++) {
       const s = Math.min(tw, th);
       if (s < 0.5) break;
       const dir = i % 4;
@@ -1598,51 +1598,32 @@ export function renderFibonacciOverlay(
     }
   }
 
-  // Build Fibonacci labels: largest square gets largest fib number
-  const fibLabels: number[] = [];
-  {
-    let a = 1, b = 1;
-    fibLabels.push(a);
-    for (let i = 1; i < squares.length; i++) {
-      fibLabels.push(b);
-      const next = a + b;
-      a = b;
-      b = next;
-    }
-    fibLabels.reverse();
-  }
+  // Build Fibonacci labels (largest square → largest number)
+  const count = squares.length;
+  const labels = fibSeq.slice(0, count).reverse();
 
-  // Second pass: draw the squares with correct labels
+  // Draw the squares
   squares.forEach((sq, i) => {
     const { sx, sy, s } = sq;
-    const sqRect = new paper.Rectangle(new paper.Point(sx, sy), new paper.Size(s, s));
+    const rectColor = hexToColor(style.color, style.opacity * 0.5);
+    const fillC = hexToColor(style.color, style.opacity * 0.04);
+    const rect = new paper.Path.Rectangle(
+      new paper.Point(sx, sy), new paper.Size(s, s)
+    );
+    rect.strokeColor = rectColor;
+    rect.strokeWidth = style.strokeWidth;
+    rect.fillColor = fillC;
 
-    let coverage = 0;
-    if (context?.useRealData && context?.actualPaths) {
-      for (const p of context.actualPaths) {
-        if (sqRect.intersects(p.bounds)) coverage++;
-      }
+    if (s > 8) {
+      const label = new paper.PointText(
+        new paper.Point(sx + s / 2, sy + s / 2 + 3)
+      );
+      label.content = String(labels[i]);
+      label.fillColor = labelColor;
+      label.fontSize = Math.max(6, Math.min(14, s * 0.25));
+      label.fontWeight = 'bold';
+      label.justification = 'center';
     }
-
-    const hasCoverage = coverage > 0;
-    const rectColor = hexToColor(style.color, style.opacity * (hasCoverage ? 0.6 : 0.2));
-    const fillC = hexToColor(style.color, style.opacity * (hasCoverage ? 0.06 : 0.02));
-    const rect = new paper.Path.Rectangle(sqRect);
-    showIfIntersects(rect, context, () => {
-      rect.strokeColor = rectColor;
-      rect.strokeWidth = hasCoverage ? style.strokeWidth * 1.3 : style.strokeWidth * 0.6;
-      rect.fillColor = fillC;
-
-      if (s > 10) {
-        const label = new paper.PointText(
-          new paper.Point(sx + s / 2, sy + s / 2 + 3)
-        );
-        label.content = String(fibLabels[i]);
-        label.fillColor = labelColor;
-        label.fontSize = Math.max(6, Math.min(14, s * 0.25));
-        label.justification = 'center';
-      }
-    });
   });
 }
 
@@ -1763,15 +1744,16 @@ export function renderVesicaPiscis(
   style: StyleConfig,
   context?: RenderContext
 ) {
-  const eb = getEffectiveBounds(bounds, context);
+  const eb = bounds;
   const color = hexToColor(style.color, style.opacity);
   const fillColor = hexToColor(style.color, style.opacity * 0.06);
 
   const cx = eb.center.x;
   const cy = eb.center.y;
 
-  // Classic vesica piscis: two circles of radius r separated by distance r
-  const r = eb.height / 2;
+  // Fit vesica piscis WITHIN content bounds
+  // Total width = 3r (two circles separated by r), total height = 2r
+  const r = Math.min(eb.width / 3, eb.height / 2);
   const d = r;
 
   const c1 = new paper.Path.Circle(new paper.Point(cx - d / 2, cy), r);
@@ -1788,6 +1770,13 @@ export function renderVesicaPiscis(
     c2.fillColor = null;
   });
 
+  // Center dots on each circle
+  const dot1 = new paper.Path.Circle(new paper.Point(cx - d / 2, cy), 2.5);
+  dot1.fillColor = color; dot1.strokeColor = null;
+  const dot2 = new paper.Path.Circle(new paper.Point(cx + d / 2, cy), 2.5);
+  dot2.fillColor = color; dot2.strokeColor = null;
+
+  // Vesica (lens) region
   const halfW = Math.sqrt(r * r - (d / 2) * (d / 2));
   const vesica = new paper.Path.Ellipse(new paper.Rectangle(
     new paper.Point(cx - halfW * 0.95, cy - r * 0.87),
@@ -1800,6 +1789,7 @@ export function renderVesicaPiscis(
     vesica.dashArray = [4, 3];
   });
 
+  // Vertical axis
   const axis = new paper.Path.Line(new paper.Point(cx, cy - r), new paper.Point(cx, cy + r));
   showIfIntersects(axis, context, () => {
     axis.strokeColor = hexToColor(style.color, style.opacity * 0.4);
@@ -1807,15 +1797,21 @@ export function renderVesicaPiscis(
     axis.dashArray = [3, 3];
   });
 
-  const hAxis = new paper.Path.Line(new paper.Point(cx - d / 2 - r, cy), new paper.Point(cx + d / 2 + r, cy));
+  // Horizontal axis
+  const hAxis = new paper.Path.Line(
+    new paper.Point(cx - d / 2 - r, cy),
+    new paper.Point(cx + d / 2 + r, cy)
+  );
   showIfIntersects(hAxis, context, () => {
     hAxis.strokeColor = hexToColor(style.color, style.opacity * 0.3);
     hAxis.strokeWidth = style.strokeWidth * 0.5;
     hAxis.dashArray = [3, 3];
   });
 
+  // Analysis
   if (context?.useRealData && context?.actualPaths) {
     let insideVesica = 0;
+    let insideCircles = 0;
     let total = 0;
     for (const p of context.actualPaths) {
       total++;
@@ -1823,11 +1819,13 @@ export function renderVesicaPiscis(
       const dLeft = pc.getDistance(new paper.Point(cx - d / 2, cy));
       const dRight = pc.getDistance(new paper.Point(cx + d / 2, cy));
       if (dLeft <= r && dRight <= r) insideVesica++;
+      if (dLeft <= r || dRight <= r) insideCircles++;
     }
-    const pct = total > 0 ? Math.round((insideVesica / total) * 100) : 0;
+    const vesicaPct = total > 0 ? Math.round((insideVesica / total) * 100) : 0;
+    const circlesPct = total > 0 ? Math.round((insideCircles / total) * 100) : 0;
 
     const label = new paper.PointText(new paper.Point(cx, eb.top - 8));
-    label.content = `VESICA PISCIS (${pct}% content inside)`;
+    label.content = `VESICA ${vesicaPct}% · CIRCLES ${circlesPct}%`;
     label.fillColor = hexToColor(style.color, style.opacity * 0.6);
     label.fontSize = 7;
     label.fontWeight = 'bold';

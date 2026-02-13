@@ -1,20 +1,20 @@
 import paper from 'paper';
-import { hexToColor, intersectsAnyPath, showIfIntersects, computeVisualCentroid, type StyleConfig, type RenderContext } from './utils';
+import { hexToColor, intersectsAnyPath, showIfIntersects, type StyleConfig, type RenderContext } from './utils';
 
-// Helper: get the effective bounds — use real content bounds when available
-function getEffectiveBounds(bounds: paper.Rectangle, context?: RenderContext): paper.Rectangle {
-  if (context?.useRealData && context?.contentBounds) {
-    return context.contentBounds;
-  }
-  return bounds;
-}
+const PHI = (1 + Math.sqrt(5)) / 2;
 
+/**
+ * ROOT RECTANGLES (√2, √3, √5)
+ * Analyzes the SVG's actual aspect ratio and shows how it compares to
+ * classical root rectangles. Rectangles are fitted INSIDE the content
+ * and scored by how well they match.
+ */
 export function renderRootRectangles(
   bounds: paper.Rectangle,
   style: StyleConfig,
   context?: RenderContext
 ) {
-  const eb = getEffectiveBounds(bounds, context);
+  const eb = bounds; // always use the SVG item bounds
   const actualRatio = eb.width / eb.height;
 
   const roots = [
@@ -26,159 +26,186 @@ export function renderRootRectangles(
   const cx = eb.center.x;
   const cy = eb.center.y;
 
+  // Find best match among all roots
+  let bestScore = Infinity;
   roots.forEach((root) => {
-    // Check both landscape and portrait orientations
-    const ratioLandscape = root.value;
-    const ratioPortrait = 1 / root.value;
-    const diffLandscape = Math.abs(actualRatio - ratioLandscape);
-    const diffPortrait = Math.abs(actualRatio - ratioPortrait);
-    const bestDiff = Math.min(diffLandscape, diffPortrait);
-    const usePortrait = diffPortrait < diffLandscape;
+    const diffL = Math.abs(actualRatio - root.value);
+    const diffP = Math.abs(actualRatio - 1 / root.value);
+    const best = Math.min(diffL, diffP);
+    if (best < bestScore) bestScore = best;
+  });
 
-    // Closeness determines visual emphasis (0 = perfect match)
-    const closeness = bestDiff / Math.max(ratioLandscape, 1);
-    const opacity = closeness < 0.05 ? 1.0 : closeness < 0.15 ? 0.7 : closeness < 0.4 ? 0.45 : 0.25;
-    const sw = closeness < 0.05 ? style.strokeWidth * 2 : closeness < 0.15 ? style.strokeWidth * 1.3 : style.strokeWidth;
+  roots.forEach((root) => {
+    const ratioL = root.value;
+    const ratioP = 1 / root.value;
+    const diffL = Math.abs(actualRatio - ratioL);
+    const diffP = Math.abs(actualRatio - ratioP);
+    const bestDiff = Math.min(diffL, diffP);
+    const usePortrait = diffP < diffL;
+    const targetRatio = usePortrait ? ratioP : ratioL;
 
-    // Size the root rectangle to match the content's larger dimension
+    // Match percentage: how close the SVG ratio is to this root ratio
+    const matchPct = Math.max(0, (1 - Math.abs(actualRatio - targetRatio) / actualRatio) * 100);
+    const isBestMatch = bestDiff <= bestScore + 0.001;
+
+    // Fit rectangle INSIDE the content bounds (never exceeding)
     let rw: number, rh: number;
-    if (usePortrait) {
-      rh = eb.height;
-      rw = rh / root.value;
-    } else {
+    if (targetRatio >= 1) {
+      // Landscape: width is the limiting dimension
       rw = eb.width;
-      rh = rw / root.value;
+      rh = rw / targetRatio;
+      if (rh > eb.height) { rh = eb.height; rw = rh * targetRatio; }
+    } else {
+      // Portrait: height is the limiting dimension
+      rh = eb.height;
+      rw = rh * targetRatio;
+      if (rw > eb.width) { rw = eb.width; rh = rw / targetRatio; }
     }
+
+    // Visual emphasis based on match quality
+    const isGoodMatch = matchPct > 90;
+    const isDecentMatch = matchPct > 75;
+    const opacity = isGoodMatch ? 1.0 : isDecentMatch ? 0.6 : 0.3;
+    const sw = isGoodMatch ? style.strokeWidth * 2.5 : isDecentMatch ? style.strokeWidth * 1.2 : style.strokeWidth * 0.7;
 
     const color = hexToColor(style.color, style.opacity * opacity);
     const rect = new paper.Path.Rectangle(
       new paper.Point(cx - rw / 2, cy - rh / 2),
-      new paper.Point(cx + rw / 2, cy + rh / 2)
+      new paper.Size(rw, rh)
     );
     showIfIntersects(rect, context, () => {
       rect.strokeColor = color;
       rect.strokeWidth = sw;
-      rect.fillColor = null;
-      rect.dashArray = closeness < 0.05 ? [] : [8, 4];
+      rect.fillColor = isGoodMatch ? hexToColor(style.color, style.opacity * 0.04) : null;
+      rect.dashArray = isGoodMatch ? [] : [6, 4];
 
-      // Label with match percentage
-      const matchPct = Math.max(0, (1 - bestDiff / Math.max(actualRatio, 1 / actualRatio)) * 100);
-      const labelText = closeness < 0.05
+      // Label inside the rectangle (top-right corner)
+      const labelX = cx + rw / 2 - 4;
+      const labelY = cy - rh / 2 + 12;
+      const labelStr = isGoodMatch
         ? `${root.name} ✓ ${matchPct.toFixed(0)}%`
-        : `${root.name} (${matchPct.toFixed(0)}%)`;
-      const label = new paper.PointText(new paper.Point(cx + rw / 2 + 6, cy - rh / 2 + 10));
-      label.content = labelText;
+        : `${root.name} ${matchPct.toFixed(0)}%`;
+      const label = new paper.PointText(new paper.Point(labelX, labelY));
+      label.content = labelStr;
       label.fillColor = color;
-      label.fontSize = closeness < 0.05 ? 10 : 8;
-      label.fontWeight = closeness < 0.05 ? 'bold' : 'normal';
+      label.fontSize = isGoodMatch ? 11 : 8;
+      label.fontWeight = isGoodMatch ? 'bold' : 'normal';
+      label.justification = 'right';
     });
   });
 
-  // Show the actual content bounding box for reference
-  if (context?.useRealData && context?.contentBounds) {
-    const refRect = new paper.Path.Rectangle(eb);
-    const refColor = hexToColor(style.color, style.opacity * 0.3);
-    refRect.strokeColor = refColor;
-    refRect.strokeWidth = style.strokeWidth * 0.5;
-    refRect.fillColor = null;
-    refRect.dashArray = [2, 2];
-
-    const ratioLabel = new paper.PointText(new paper.Point(eb.right + 6, eb.bottom - 4));
-    ratioLabel.content = `ratio: ${actualRatio.toFixed(3)}`;
-    ratioLabel.fillColor = refColor;
-    ratioLabel.fontSize = 7;
-  }
+  // Show actual ratio label at bottom
+  const ratioLabel = new paper.PointText(new paper.Point(cx, eb.bottom + 14));
+  ratioLabel.content = `Aspect ratio: ${actualRatio.toFixed(3)}:1`;
+  ratioLabel.fillColor = hexToColor(style.color, style.opacity * 0.5);
+  ratioLabel.fontSize = 8;
+  ratioLabel.justification = 'center';
 }
 
+/**
+ * MODULAR SCALE
+ * Concentric circles from the visual center of the SVG.
+ * Base radius = inscribed circle radius. Circles are CLAMPED
+ * to not exceed the content area. Highlights circles that
+ * intersect actual SVG paths.
+ */
 export function renderModularScale(
   bounds: paper.Rectangle,
   style: StyleConfig,
   ratio: number = 1.618,
   context?: RenderContext
 ) {
-  const eb = getEffectiveBounds(bounds, context);
+  const eb = bounds;
+  const cx = eb.center.x;
+  const cy = eb.center.y;
 
-  // Center on visual centroid when real data available, otherwise bounds center
-  let cx: number, cy: number;
-  if (context?.useRealData && context?.actualPaths && context.actualPaths.length > 0) {
-    const centroid = computeVisualCentroid(context.actualPaths);
-    cx = centroid.x;
-    cy = centroid.y;
-  } else {
-    cx = eb.center.x;
-    cy = eb.center.y;
-  }
-
-  // Base radius from smallest dimension of actual content
   const minDim = Math.min(eb.width, eb.height);
-  const maxDim = Math.max(eb.width, eb.height);
+  const maxRadius = Math.sqrt(eb.width * eb.width + eb.height * eb.height) / 2; // diagonal / 2
 
-  // Find the scale step that makes the first circle fit the smallest content feature
-  // Start from a radius that encompasses the nearest path point
-  let baseRadius: number;
-  if (context?.useRealData && context?.actualPaths && context.actualPaths.length > 0) {
-    // Find minimum distance from centroid to any path
-    let minDist = Infinity;
-    for (const p of context.actualPaths) {
-      const nearest = p.getNearestPoint(new paper.Point(cx, cy));
-      const d = nearest.getDistance(new paper.Point(cx, cy));
-      if (d > 0 && d < minDist) minDist = d;
-    }
-    baseRadius = minDist > 0 && minDist < minDim ? minDist : minDim * 0.08;
-  } else {
-    baseRadius = minDim * 0.08;
-  }
+  // Base radius: inscribed circle (fits inside content)
+  // Then scale down by ratio to show the scale progression starting small
+  const inscribed = minDim / 2;
+  // Find how many steps fit: inscribed = base * ratio^n => base = inscribed / ratio^n
+  // We want about 6-7 visible circles
+  const targetSteps = 6;
+  const baseRadius = inscribed / Math.pow(ratio, targetSteps - 1);
 
-  // Show centroid marker
-  if (context?.useRealData) {
-    const marker = new paper.Path.Circle(new paper.Point(cx, cy), 3);
-    marker.fillColor = hexToColor(style.color, style.opacity * 0.8);
-    marker.strokeColor = null;
-  }
+  // Centroid marker
+  const marker = new paper.Path.Circle(new paper.Point(cx, cy), 2.5);
+  marker.fillColor = hexToColor(style.color, style.opacity * 0.9);
+  marker.strokeColor = null;
+
+  // Small crosshair at center
+  const chSize = 6;
+  const chH = new paper.Path.Line(
+    new paper.Point(cx - chSize, cy), new paper.Point(cx + chSize, cy)
+  );
+  chH.strokeColor = hexToColor(style.color, style.opacity * 0.4);
+  chH.strokeWidth = 0.5;
+  const chV = new paper.Path.Line(
+    new paper.Point(cx, cy - chSize), new paper.Point(cx, cy + chSize)
+  );
+  chV.strokeColor = hexToColor(style.color, style.opacity * 0.4);
+  chV.strokeWidth = 0.5;
 
   for (let i = 0; i < 10; i++) {
     const r = baseRadius * Math.pow(ratio, i);
-    if (r > maxDim * 2) break;
+    if (r > maxRadius) break;
 
+    // Check if this circle intersects actual SVG paths
     const circle = new paper.Path.Circle(new paper.Point(cx, cy), r);
-    const circleColor = hexToColor(style.color, style.opacity * (1 - i * 0.08));
-
-    // When using real data, check how many paths this ring touches
     let pathCount = 0;
     if (context?.useRealData && context?.actualPaths) {
       for (const p of context.actualPaths) {
         if (circle.getIntersections(p as any).length > 0) pathCount++;
       }
     }
-
     const isSignificant = pathCount > 0;
+
+    // Opacity fades as circles grow beyond content
+    const beyondContent = r > inscribed;
+    const fade = beyondContent ? Math.max(0.15, 1 - (r - inscribed) / inscribed) : 1;
+    const circleColor = hexToColor(style.color, style.opacity * fade * (isSignificant ? 1 : 0.5));
 
     showIfIntersects(circle, context, () => {
       circle.strokeColor = circleColor;
-      circle.strokeWidth = isSignificant ? style.strokeWidth * 1.5 : style.strokeWidth;
+      circle.strokeWidth = isSignificant ? style.strokeWidth * 1.5 : style.strokeWidth * 0.7;
       circle.fillColor = null;
-      circle.dashArray = isSignificant ? [] : [4, 4];
+      circle.dashArray = isSignificant ? [] : [3, 3];
 
-      if (r > 15) {
-        const labelText = context?.useRealData && pathCount > 0
-          ? `×${ratio.toFixed(2)}^${i} (${pathCount})`
-          : `×${ratio.toFixed(3)}^${i}`;
-        const label = new paper.PointText(new paper.Point(cx + r + 5, cy - 3));
-        label.content = labelText;
-        label.fillColor = hexToColor(style.color, style.opacity * 0.7);
-        label.fontSize = 8;
+      // Label: only for circles within content area
+      if (r > 12 && !beyondContent) {
+        const angle = -Math.PI / 4; // 45° top-right
+        const lx = cx + r * Math.cos(angle);
+        const ly = cy + r * Math.sin(angle);
+        const label = new paper.PointText(new paper.Point(lx + 3, ly - 3));
+        label.content = isSignificant ? `${i + 1} (${pathCount})` : `${i + 1}`;
+        label.fillColor = hexToColor(style.color, style.opacity * 0.6);
+        label.fontSize = 7;
       }
     });
   }
+
+  // Scale info label
+  const infoLabel = new paper.PointText(new paper.Point(cx, eb.bottom + 14));
+  infoLabel.content = `Modular scale ×${ratio.toFixed(3)}`;
+  infoLabel.fillColor = hexToColor(style.color, style.opacity * 0.4);
+  infoLabel.fontSize = 7;
+  infoLabel.justification = 'center';
 }
 
+/**
+ * SAFE ZONE
+ * Shows a margin zone around the actual content. Detects if SVG
+ * paths bleed into the margin areas.
+ */
 export function renderSafeZone(
   bounds: paper.Rectangle,
   style: StyleConfig,
   margin: number = 0.1,
   context?: RenderContext
 ) {
-  const eb = getEffectiveBounds(bounds, context);
+  const eb = bounds;
   const color = hexToColor(style.color, style.opacity);
   const fillColor = hexToColor(style.color, style.opacity * 0.06);
   const insetX = eb.width * margin;
@@ -214,41 +241,50 @@ export function renderSafeZone(
     r.strokeColor = null;
   });
 
-  // Show content within safe zone
-  if (context?.useRealData && context?.contentBounds) {
-    const cb = context.contentBounds;
-    // Check if content fits within safe zone
-    const safeL = eb.left + insetX;
-    const safeT = eb.top + insetY;
-    const safeR = eb.right - insetX;
-    const safeB = eb.bottom - insetY;
-    const fitsInside = cb.left >= safeL && cb.top >= safeT && cb.right <= safeR && cb.bottom <= safeB;
+  // Dimension labels on margins
+  const marginPx = Math.round(insetX);
+  const topLabel = new paper.PointText(new paper.Point(cx(eb), eb.top + insetY / 2 + 3));
+  topLabel.content = `${marginPx}px`;
+  topLabel.fillColor = hexToColor(style.color, style.opacity * 0.4);
+  topLabel.fontSize = 7;
+  topLabel.justification = 'center';
 
+  // Status label
+  if (context?.useRealData && context?.actualPaths) {
+    const fitsInside = bleedCount === 0;
     const statusLabel = new paper.PointText(new paper.Point(eb.left + insetX + 4, eb.top + insetY + 12));
-    statusLabel.content = fitsInside ? 'SAFE ZONE ✓' : `SAFE ZONE ✗ (${bleedCount} bleeds)`;
+    statusLabel.content = fitsInside ? `SAFE ZONE ✓ (${(margin * 100).toFixed(0)}%)` : `SAFE ZONE ✗ ${bleedCount}/4 bleeds`;
     statusLabel.fillColor = fitsInside ? hexToColor('#22cc44', style.opacity * 0.8) : hexToColor('#ff4444', style.opacity * 0.8);
     statusLabel.fontSize = 8;
     statusLabel.fontWeight = 'bold';
   } else {
     const label = new paper.PointText(new paper.Point(eb.left + insetX + 4, eb.top + insetY + 12));
-    label.content = 'SAFE ZONE';
+    label.content = `SAFE ZONE (${(margin * 100).toFixed(0)}%)`;
     label.fillColor = hexToColor(style.color, style.opacity * 0.6);
     label.fontSize = 8;
     label.fontWeight = 'bold';
   }
 }
 
+// Helper for safe zone
+function cx(r: paper.Rectangle) { return r.center.x; }
+
+/**
+ * FIBONACCI OVERLAY
+ * Golden rectangle subdivided into Fibonacci squares.
+ * Limited to 8 subdivisions. Labels use correct Fibonacci sequence
+ * (largest square = largest number).
+ */
 export function renderFibonacciOverlay(
   bounds: paper.Rectangle,
   style: StyleConfig,
   context?: RenderContext
 ) {
-  const eb = getEffectiveBounds(bounds, context);
+  const eb = bounds;
   const dimColor = hexToColor(style.color, style.opacity * 0.5);
-  const labelColor = hexToColor(style.color, style.opacity * 0.7);
-  const PHI = (1 + Math.sqrt(5)) / 2;
+  const labelColor = hexToColor(style.color, style.opacity * 0.8);
 
-  // Fit a golden rectangle inside the effective content bounds
+  // Fit a golden rectangle INSIDE the content bounds
   let w: number, h: number;
   if (eb.width / eb.height >= PHI) {
     h = eb.height;
@@ -258,61 +294,50 @@ export function renderFibonacciOverlay(
     h = w / PHI;
   }
 
-  let x = eb.center.x - w / 2;
-  let y = eb.center.y - h / 2;
+  let startX = eb.center.x - w / 2;
+  let startY = eb.center.y - h / 2;
 
   // Outer golden rectangle
   const outerRect = new paper.Path.Rectangle(
-    new paper.Point(x, y), new paper.Size(w, h)
+    new paper.Point(startX, startY), new paper.Size(w, h)
   );
-  showIfIntersects(outerRect, context, () => {
-    outerRect.strokeColor = dimColor;
-    outerRect.strokeWidth = style.strokeWidth * 0.7;
-    outerRect.fillColor = null;
-    outerRect.dashArray = [4, 3];
-  });
+  outerRect.strokeColor = dimColor;
+  outerRect.strokeWidth = style.strokeWidth * 0.7;
+  outerRect.fillColor = null;
+  outerRect.dashArray = [4, 3];
 
-  // First pass: compute all square positions to know the count
+  // Compute all squares (max 8 for clean visual)
+  const MAX_SQUARES = 8;
   const squares: { sx: number; sy: number; s: number }[] = [];
   {
-    let tw = w, th = h, tx = x, ty = y;
-    for (let i = 0; i < 12; i++) {
+    let tw = w, th = h, tx = startX, ty = startY;
+    for (let i = 0; i < MAX_SQUARES; i++) {
       const s = Math.min(tw, th);
-      if (s < 0.5) break;
+      if (s < 1) break;
       const dir = i % 4;
-      let sx: number, sy: number;
+      let sqx: number, sqy: number;
       switch (dir) {
-        case 0: { sx = tx; sy = ty; tx += s; tw -= s; break; }
-        case 1: { sx = tx; sy = ty; ty += s; th -= s; break; }
-        case 2: { sx = tx + tw - s; sy = ty; tw -= s; break; }
-        case 3: { sx = tx; sy = ty + th - s; th -= s; break; }
+        case 0: { sqx = tx; sqy = ty; tx += s; tw -= s; break; }
+        case 1: { sqx = tx; sqy = ty; ty += s; th -= s; break; }
+        case 2: { sqx = tx + tw - s; sqy = ty; tw -= s; break; }
+        case 3: { sqx = tx; sqy = ty + th - s; th -= s; break; }
         default: continue;
       }
-      squares.push({ sx, sy, s });
+      squares.push({ sx: sqx, sy: sqy, s });
     }
   }
 
-  // Build Fibonacci labels: largest square gets the largest fib number
-  // Fibonacci sequence reversed to match: biggest square = biggest number
-  const fibLabels: number[] = [];
-  {
-    let a = 1, b = 1;
-    fibLabels.push(a);
-    for (let i = 1; i < squares.length; i++) {
-      fibLabels.push(b);
-      const next = a + b;
-      a = b;
-      b = next;
-    }
-    fibLabels.reverse(); // largest number for the largest (first) square
-  }
+  // Classic Fibonacci labels: 1, 1, 2, 3, 5, 8, 13, 21
+  // Reversed so biggest square = biggest number
+  const fibSeq = [1, 1, 2, 3, 5, 8, 13, 21];
+  const fibLabels = fibSeq.slice(0, squares.length).reverse();
 
-  // Second pass: draw the squares with correct labels
+  // Draw squares
   squares.forEach((sq, i) => {
     const { sx, sy, s } = sq;
     const sqRect = new paper.Rectangle(new paper.Point(sx, sy), new paper.Size(s, s));
 
-    // Check how much real content falls in this square
+    // Check content coverage
     let coverage = 0;
     if (context?.useRealData && context?.actualPaths) {
       for (const p of context.actualPaths) {
@@ -320,48 +345,55 @@ export function renderFibonacciOverlay(
       }
     }
 
-    const hasCoverage = coverage > 0;
-    const rectColor = hexToColor(style.color, style.opacity * (hasCoverage ? 0.6 : 0.2));
-    const fillC = hexToColor(style.color, style.opacity * (hasCoverage ? 0.06 : 0.02));
+    const hasCoverage = context?.useRealData ? coverage > 0 : true;
+    const rectColor = hexToColor(style.color, style.opacity * (hasCoverage ? 0.7 : 0.2));
+    const fillC = hexToColor(style.color, style.opacity * (hasCoverage ? 0.05 : 0.01));
     const rect = new paper.Path.Rectangle(sqRect);
-    showIfIntersects(rect, context, () => {
-      rect.strokeColor = rectColor;
-      rect.strokeWidth = hasCoverage ? style.strokeWidth * 1.3 : style.strokeWidth * 0.6;
-      rect.fillColor = fillC;
+    rect.strokeColor = rectColor;
+    rect.strokeWidth = hasCoverage ? style.strokeWidth * 1.2 : style.strokeWidth * 0.5;
+    rect.fillColor = fillC;
 
-      if (s > 10) {
-        const label = new paper.PointText(
-          new paper.Point(sx + s / 2, sy + s / 2 + 3)
-        );
-        label.content = String(fibLabels[i]);
-        label.fillColor = labelColor;
-        label.fontSize = Math.max(6, Math.min(14, s * 0.25));
-        label.justification = 'center';
-      }
-    });
+    if (s > 8 && i < fibLabels.length) {
+      const label = new paper.PointText(
+        new paper.Point(sx + s / 2, sy + s / 2 + 4)
+      );
+      label.content = String(fibLabels[i]);
+      label.fillColor = labelColor;
+      label.fontSize = Math.max(7, Math.min(16, s * 0.2));
+      label.justification = 'center';
+      label.fontWeight = 'bold';
+    }
   });
 }
 
+/**
+ * VESICA PISCIS
+ * Two overlapping circles fitted WITHIN the SVG content bounds.
+ * Classic construction: two circles of radius r separated by distance r,
+ * creating the mandorla (lens shape) at their intersection.
+ */
 export function renderVesicaPiscis(
   bounds: paper.Rectangle,
   style: StyleConfig,
   context?: RenderContext
 ) {
-  const eb = getEffectiveBounds(bounds, context);
+  const eb = bounds;
   const color = hexToColor(style.color, style.opacity);
   const fillColor = hexToColor(style.color, style.opacity * 0.06);
 
-  const cx = eb.center.x;
-  const cy = eb.center.y;
+  const cxVal = eb.center.x;
+  const cyVal = eb.center.y;
 
-  // Classic vesica piscis: two circles of radius r, separated by distance r
-  // r = content height / 2 (fits the content vertically)
-  const r = eb.height / 2;
-  // Classic separation = r (circles overlap by r, creating the vesica)
-  const d = r;
+  // Fit two overlapping circles WITHIN the content bounds
+  // With separation d = r, total width = 2r + d = 3r, total height = 2r
+  // So: 3r ≤ width and 2r ≤ height
+  const rFromWidth = eb.width / 3;
+  const rFromHeight = eb.height / 2;
+  const r = Math.min(rFromWidth, rFromHeight);
+  const d = r; // classic vesica piscis separation
 
   // Left circle
-  const c1 = new paper.Path.Circle(new paper.Point(cx - d / 2, cy), r);
+  const c1 = new paper.Path.Circle(new paper.Point(cxVal - d / 2, cyVal), r);
   showIfIntersects(c1, context, () => {
     c1.strokeColor = color;
     c1.strokeWidth = style.strokeWidth;
@@ -369,30 +401,30 @@ export function renderVesicaPiscis(
   });
 
   // Right circle
-  const c2 = new paper.Path.Circle(new paper.Point(cx + d / 2, cy), r);
+  const c2 = new paper.Path.Circle(new paper.Point(cxVal + d / 2, cyVal), r);
   showIfIntersects(c2, context, () => {
     c2.strokeColor = color;
     c2.strokeWidth = style.strokeWidth;
     c2.fillColor = null;
   });
 
-  // The vesica piscis area (the lens/mandorla shape)
-  // Width of vesica = 2 * sqrt(r² - (d/2)²)
-  // Height of vesica = 2 * r * sin(arccos(d / (2r)))
+  // Vesica piscis area (lens/mandorla)
   const halfW = Math.sqrt(r * r - (d / 2) * (d / 2));
   const vesica = new paper.Path.Ellipse(new paper.Rectangle(
-    new paper.Point(cx - halfW * 0.95, cy - r * 0.87),
-    new paper.Point(cx + halfW * 0.95, cy + r * 0.87)
+    new paper.Point(cxVal - halfW, cyVal - r * 0.87),
+    new paper.Point(cxVal + halfW, cyVal + r * 0.87)
   ));
   showIfIntersects(vesica, context, () => {
-    vesica.strokeColor = hexToColor(style.color, style.opacity * 0.7);
+    vesica.strokeColor = hexToColor(style.color, style.opacity * 0.8);
     vesica.strokeWidth = style.strokeWidth * 0.8;
     vesica.fillColor = fillColor;
     vesica.dashArray = [4, 3];
   });
 
-  // Center vertical axis (sacred geometry axis)
-  const axis = new paper.Path.Line(new paper.Point(cx, cy - r), new paper.Point(cx, cy + r));
+  // Center vertical axis
+  const axis = new paper.Path.Line(
+    new paper.Point(cxVal, cyVal - r), new paper.Point(cxVal, cyVal + r)
+  );
   showIfIntersects(axis, context, () => {
     axis.strokeColor = hexToColor(style.color, style.opacity * 0.4);
     axis.strokeWidth = style.strokeWidth * 0.5;
@@ -400,38 +432,47 @@ export function renderVesicaPiscis(
   });
 
   // Horizontal axis
-  const hAxis = new paper.Path.Line(new paper.Point(cx - d / 2 - r, cy), new paper.Point(cx + d / 2 + r, cy));
+  const hAxis = new paper.Path.Line(
+    new paper.Point(cxVal - d / 2 - r, cyVal), new paper.Point(cxVal + d / 2 + r, cyVal)
+  );
   showIfIntersects(hAxis, context, () => {
     hAxis.strokeColor = hexToColor(style.color, style.opacity * 0.3);
     hAxis.strokeWidth = style.strokeWidth * 0.5;
     hAxis.dashArray = [3, 3];
   });
 
-  // Show how content relates to the vesica
+  // Center marks of each circle
+  [cxVal - d / 2, cxVal + d / 2].forEach(circCx => {
+    const dot = new paper.Path.Circle(new paper.Point(circCx, cyVal), 2);
+    dot.fillColor = hexToColor(style.color, style.opacity * 0.6);
+    dot.strokeColor = null;
+  });
+
+  // Analysis: how much content is inside the vesica vs circles
   if (context?.useRealData && context?.actualPaths) {
-    // Count paths inside vesica area vs outside
     let insideVesica = 0;
+    let insideCircles = 0;
     let total = 0;
     for (const p of context.actualPaths) {
       total++;
       const pc = p.bounds.center;
-      // Check if path center is inside the vesica region (between the two circles)
-      const dLeft = pc.getDistance(new paper.Point(cx - d / 2, cy));
-      const dRight = pc.getDistance(new paper.Point(cx + d / 2, cy));
+      const dLeft = pc.getDistance(new paper.Point(cxVal - d / 2, cyVal));
+      const dRight = pc.getDistance(new paper.Point(cxVal + d / 2, cyVal));
       if (dLeft <= r && dRight <= r) insideVesica++;
+      if (dLeft <= r || dRight <= r) insideCircles++;
     }
-    const pct = total > 0 ? Math.round((insideVesica / total) * 100) : 0;
+    const vpPct = total > 0 ? Math.round((insideVesica / total) * 100) : 0;
+    const cPct = total > 0 ? Math.round((insideCircles / total) * 100) : 0;
 
-    const label = new paper.PointText(new paper.Point(cx, eb.top - 8));
-    label.content = `VESICA PISCIS (${pct}% content inside)`;
-    label.fillColor = hexToColor(style.color, style.opacity * 0.6);
+    const label = new paper.PointText(new paper.Point(cxVal, eb.top - 6));
+    label.content = `Vesica: ${vpPct}% | Circles: ${cPct}%`;
+    label.fillColor = hexToColor(style.color, style.opacity * 0.5);
     label.fontSize = 7;
-    label.fontWeight = 'bold';
     label.justification = 'center';
   } else {
-    const label = new paper.PointText(new paper.Point(cx, eb.top - 8));
+    const label = new paper.PointText(new paper.Point(cxVal, eb.top - 6));
     label.content = 'VESICA PISCIS';
-    label.fillColor = hexToColor(style.color, style.opacity * 0.6);
+    label.fillColor = hexToColor(style.color, style.opacity * 0.5);
     label.fontSize = 7;
     label.fontWeight = 'bold';
     label.justification = 'center';
