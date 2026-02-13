@@ -52,55 +52,107 @@ export function renderGoldenSpiral(
   context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
+  const dimColor = hexToColor(style.color, style.opacity * 0.5);
 
-  let w = bounds.width;
-  let h = bounds.width / PHI;
+  // Fit a golden rectangle inside the bounds
+  let w: number, h: number;
+  if (bounds.width / bounds.height >= PHI) {
+    h = bounds.height;
+    w = h * PHI;
+  } else {
+    w = bounds.width;
+    h = w / PHI;
+  }
+
   let x = bounds.center.x - w / 2;
   let y = bounds.center.y - h / 2;
 
-  for (let i = 0; i < 10; i++) {
-    const dir = i % 4;
-    let cx: number, cy: number, r: number;
+  // Draw outer golden rectangle
+  const outerRect = new paper.Path.Rectangle(
+    new paper.Point(x, y), new paper.Size(w, h)
+  );
+  showIfIntersects(outerRect, context, () => {
+    outerRect.strokeColor = dimColor;
+    outerRect.strokeWidth = style.strokeWidth * 0.7;
+    outerRect.fillColor = null;
+    outerRect.dashArray = [4, 3];
+  });
 
-    if (dir === 0) {
-      r = h; cx = x + w - h; cy = y + h;
-      const arc = new paper.Path.Arc(
-        new paper.Point(cx + r * Math.cos((-90 * Math.PI) / 180), cy + r * Math.sin((-90 * Math.PI) / 180)),
-        new paper.Point(cx + r * Math.cos((-45 * Math.PI) / 180), cy + r * Math.sin((-45 * Math.PI) / 180)),
-        new paper.Point(cx + r * Math.cos((0 * Math.PI) / 180), cy + r * Math.sin((0 * Math.PI) / 180))
-      );
-      showIfIntersects(arc, context, () => { arc.strokeColor = color; arc.strokeWidth = style.strokeWidth; arc.fillColor = null; });
-      const newH = w - h; w = h; h = newH;
-    } else if (dir === 1) {
-      r = w; cx = x; cy = y + w;
-      const arc = new paper.Path.Arc(
-        new paper.Point(cx + r * Math.cos((0 * Math.PI) / 180), cy + r * Math.sin((0 * Math.PI) / 180)),
-        new paper.Point(cx + r * Math.cos((45 * Math.PI) / 180), cy + r * Math.sin((45 * Math.PI) / 180)),
-        new paper.Point(cx + r * Math.cos((90 * Math.PI) / 180), cy + r * Math.sin((90 * Math.PI) / 180))
-      );
-      showIfIntersects(arc, context, () => { arc.strokeColor = color; arc.strokeWidth = style.strokeWidth; arc.fillColor = null; });
-      const newW = h - w; y = y + w; h = w; w = newW;
-    } else if (dir === 2) {
-      r = h; cx = x + h; cy = y;
-      const arc = new paper.Path.Arc(
-        new paper.Point(cx + r * Math.cos((90 * Math.PI) / 180), cy + r * Math.sin((90 * Math.PI) / 180)),
-        new paper.Point(cx + r * Math.cos((135 * Math.PI) / 180), cy + r * Math.sin((135 * Math.PI) / 180)),
-        new paper.Point(cx + r * Math.cos((180 * Math.PI) / 180), cy + r * Math.sin((180 * Math.PI) / 180))
-      );
-      showIfIntersects(arc, context, () => { arc.strokeColor = color; arc.strokeWidth = style.strokeWidth; arc.fillColor = null; });
-      const newH = w - h; x = x + h; w = h; h = newH;
-    } else {
-      r = w; cx = x + w; cy = y + h - w;
-      const arc = new paper.Path.Arc(
-        new paper.Point(cx + r * Math.cos((180 * Math.PI) / 180), cy + r * Math.sin((180 * Math.PI) / 180)),
-        new paper.Point(cx + r * Math.cos((225 * Math.PI) / 180), cy + r * Math.sin((225 * Math.PI) / 180)),
-        new paper.Point(cx + r * Math.cos((270 * Math.PI) / 180), cy + r * Math.sin((270 * Math.PI) / 180))
-      );
-      showIfIntersects(arc, context, () => { arc.strokeColor = color; arc.strokeWidth = style.strokeWidth; arc.fillColor = null; });
-      const newW = h - w; y = y + h - w; h = w; w = newW;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+
+  // Draw spiral arcs: cycle LEFT → TOP → RIGHT → BOTTOM
+  // Each step cuts a square (side = min(w,h)) from that edge
+  // and draws a quarter-circle arc inside it.
+  for (let i = 0; i < 12; i++) {
+    const s = Math.min(w, h);
+    if (s < 0.5) break;
+
+    const dir = i % 4;
+    let cx: number, cy: number;
+    let startAngle: number;
+
+    switch (dir) {
+      case 0: { // LEFT: center at bottom-right of square, arc 180°→270°
+        cx = x + s;
+        cy = y + s;
+        startAngle = 180;
+        const div0 = new paper.Path.Line(new paper.Point(x + s, y), new paper.Point(x + s, y + s));
+        div0.strokeColor = dimColor; div0.strokeWidth = style.strokeWidth * 0.4; div0.dashArray = [2, 2];
+        x += s; w -= s;
+        break;
+      }
+      case 1: { // TOP: center at bottom-left of square, arc 270°→360°
+        cx = x;
+        cy = y + s;
+        startAngle = 270;
+        const div1 = new paper.Path.Line(new paper.Point(x, y + s), new paper.Point(x + s, y + s));
+        div1.strokeColor = dimColor; div1.strokeWidth = style.strokeWidth * 0.4; div1.dashArray = [2, 2];
+        y += s; h -= s;
+        break;
+      }
+      case 2: { // RIGHT: center at top-left of square, arc 0°→90°
+        cx = x + w - s;
+        cy = y;
+        startAngle = 0;
+        const div2 = new paper.Path.Line(new paper.Point(x + w - s, y), new paper.Point(x + w - s, y + s));
+        div2.strokeColor = dimColor; div2.strokeWidth = style.strokeWidth * 0.4; div2.dashArray = [2, 2];
+        w -= s;
+        break;
+      }
+      case 3: { // BOTTOM: center at top-right of square, arc 90°→180°
+        cx = x + s;
+        cy = y + h - s;
+        startAngle = 90;
+        const div3 = new paper.Path.Line(new paper.Point(x, y + h - s), new paper.Point(x + s, y + h - s));
+        div3.strokeColor = dimColor; div3.strokeWidth = style.strokeWidth * 0.4; div3.dashArray = [2, 2];
+        h -= s;
+        break;
+      }
+      default: continue;
     }
 
-    if (w < 1 || h < 1) break;
+    const midAngle = startAngle + 45;
+    const endAngle = startAngle + 90;
+
+    const from = new paper.Point(
+      cx + s * Math.cos(toRad(startAngle)),
+      cy + s * Math.sin(toRad(startAngle))
+    );
+    const through = new paper.Point(
+      cx + s * Math.cos(toRad(midAngle)),
+      cy + s * Math.sin(toRad(midAngle))
+    );
+    const to = new paper.Point(
+      cx + s * Math.cos(toRad(endAngle)),
+      cy + s * Math.sin(toRad(endAngle))
+    );
+
+    const arc = new paper.Path.Arc(from, through, to);
+    showIfIntersects(arc, context, () => {
+      arc.strokeColor = color;
+      arc.strokeWidth = style.strokeWidth;
+      arc.fillColor = null;
+    });
   }
 }
 
