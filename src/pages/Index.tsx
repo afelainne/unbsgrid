@@ -215,6 +215,7 @@ const Index = () => {
   const [modularScaleRatio, setModularScaleRatio] = useState(1.618);
   const [safeZoneMargin, setSafeZoneMargin] = useState(0.1);
   const [maxCircles, setMaxCircles] = useState(6);
+  const [maxFlowLines, setMaxFlowLines] = useState(5);
   const [anchorPointSize, setAnchorPointSize] = useState(3);
   const [svgColorOverride, setSvgColorOverride] = useState<string | null>(null);
   const [useRealDataInterpretation, setUseRealDataInterpretation] = useState(true);
@@ -865,6 +866,25 @@ const Index = () => {
                         {geometryOptions[key] && (
                           <>
                             <StyleControl style={geometryStyles[key]} onChange={(s) => updateStyle(key, s)} />
+                            {/* Extra controls for parallelFlowLines */}
+                            {key === "parallelFlowLines" && (
+                              <div className="pl-7 pr-1 pb-2">
+                                <div className="flex items-center gap-2">
+                                  <Label className="text-[10px] text-muted-foreground w-8">Lines</Label>
+                                  <Slider
+                                    min={1}
+                                    max={20}
+                                    step={1}
+                                    value={[maxFlowLines]}
+                                    onValueChange={(v) => setMaxFlowLines(v[0])}
+                                    className="flex-1"
+                                  />
+                                  <span className="text-[9px] text-muted-foreground w-6 text-right">
+                                    {maxFlowLines}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                             {/* Extra controls for modularScale */}
                             {key === "modularScale" && (
                               <div className="pl-7 pr-1 pb-2">
@@ -1009,6 +1029,7 @@ const Index = () => {
           svgOutlineDash={svgOutlineDash}
           svgOutlineLineCap={svgOutlineLineCap}
           maxCircles={maxCircles}
+          maxFlowLines={maxFlowLines}
           anchorPointSize={anchorPointSize}
           onProjectReady={(p) => {
             projectRef.current = p;

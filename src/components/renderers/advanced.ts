@@ -72,7 +72,8 @@ export function renderBezierHandles(
 export function renderParallelFlowLines(
   bounds: paper.Rectangle,
   style: StyleConfig,
-  context?: RenderContext
+  context?: RenderContext,
+  maxFlowLines: number = 5
 ) {
   if (!context?.useRealData || !context?.actualPaths || context.actualPaths.length === 0) return;
 
@@ -137,7 +138,7 @@ export function renderParallelFlowLines(
   }
 
   groups.sort((a, b) => b.points.length - a.points.length);
-  const topGroups = groups.slice(0, 5);
+  const topGroups = groups.slice(0, maxFlowLines);
   const diag = Math.sqrt(bounds.width * bounds.width + bounds.height * bounds.height);
   const ext = 30;
   const clipLeft = bounds.left - ext; const clipTop = bounds.top - ext;
