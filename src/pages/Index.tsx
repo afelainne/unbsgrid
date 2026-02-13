@@ -214,7 +214,6 @@ const Index = () => {
   const [canvasBackground, setCanvasBackground] = useState<CanvasBackground>("dark");
   const [modularScaleRatio, setModularScaleRatio] = useState(1.618);
   const [safeZoneMargin, setSafeZoneMargin] = useState(0.1);
-  const [maxCircles, setMaxCircles] = useState(6);
   const [maxFlowLines, setMaxFlowLines] = useState(5);
   const [anchorPointSize, setAnchorPointSize] = useState(3);
   const [svgColorOverride, setSvgColorOverride] = useState<string | null>(null);
@@ -924,25 +923,6 @@ const Index = () => {
                                 </div>
                               </div>
                             )}
-                            {/* Extra controls for underlyingCircles */}
-                            {key === "underlyingCircles" && (
-                              <div className="pl-7 pr-1 pb-2">
-                                <div className="flex items-center gap-2">
-                                  <Label className="text-[10px] text-muted-foreground w-12">Circles</Label>
-                                  <Slider
-                                    min={1}
-                                    max={30}
-                                    step={1}
-                                    value={[maxCircles]}
-                                    onValueChange={(v) => setMaxCircles(v[0])}
-                                    className="flex-1"
-                                  />
-                                  <span className="text-[9px] text-muted-foreground w-6 text-right">
-                                    {maxCircles}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
                             {/* Extra controls for anchorPoints */}
                             {key === "anchorPoints" && (
                               <div className="pl-7 pr-1 pb-2">
@@ -1028,7 +1008,6 @@ const Index = () => {
           svgOutlineWidth={svgOutlineWidth}
           svgOutlineDash={svgOutlineDash}
           svgOutlineLineCap={svgOutlineLineCap}
-          maxCircles={maxCircles}
           maxFlowLines={maxFlowLines}
           anchorPointSize={anchorPointSize}
           onProjectReady={(p) => {

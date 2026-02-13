@@ -182,8 +182,7 @@ export function renderParallelFlowLines(
 export function renderUnderlyingCircles(
   bounds: paper.Rectangle,
   style: StyleConfig,
-  context?: RenderContext,
-  maxCircles: number = 6
+  context?: RenderContext
 ) {
   if (!context?.useRealData || !context?.actualPaths || context.actualPaths.length === 0) return;
 
@@ -230,9 +229,8 @@ export function renderUnderlyingCircles(
   }
 
   candidates.sort((a, b) => b.score - a.score);
-  const topCircles = candidates.slice(0, maxCircles);
 
-  topCircles.forEach((c, idx) => {
+  candidates.forEach((c, idx) => {
     const circle = new paper.Path.Circle(new paper.Point(c.cx, c.cy), c.r);
     circle.strokeColor = idx < 2 ? color : dimColor; circle.strokeWidth = style.strokeWidth * (idx < 2 ? 1 : 0.7);
     circle.fillColor = null; circle.dashArray = [6, 3];

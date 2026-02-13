@@ -35,7 +35,6 @@ interface PreviewCanvasProps {
   svgOutlineWidth?: number;
   svgOutlineDash?: number[];
   svgOutlineLineCap?: string;
-  maxCircles?: number;
   maxFlowLines?: number;
   anchorPointSize?: number;
   onProjectReady?: (project: paper.Project) => void;
@@ -54,7 +53,6 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   geometryOptions, geometryStyles, canvasBackground, modularScaleRatio = 1.618,
   safeZoneMargin = 0.1, svgColorOverride, useRealDataInterpretation = true,
   svgOutlineMode = false, svgOutlineWidth = 1, svgOutlineDash = [], svgOutlineLineCap = 'butt',
-  maxCircles = 6,
   maxFlowLines = 5,
   anchorPointSize = 3,
   onProjectReady,
@@ -229,7 +227,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     if (geometryOptions.harmonicDivisions) safe(() => renderHarmonicDivisions(bounds, s.harmonicDivisions, renderContext));
     // Advanced SVG Analysis
     if (geometryOptions.parallelFlowLines) safe(() => renderParallelFlowLines(bounds, s.parallelFlowLines, renderContext, maxFlowLines));
-    if (geometryOptions.underlyingCircles) safe(() => renderUnderlyingCircles(bounds, s.underlyingCircles, renderContext, maxCircles));
+    if (geometryOptions.underlyingCircles) safe(() => renderUnderlyingCircles(bounds, s.underlyingCircles, renderContext));
     if (geometryOptions.dominantDiagonals) safe(() => renderDominantDiagonals(bounds, s.dominantDiagonals, renderContext));
     if (geometryOptions.curvatureComb) safe(() => renderCurvatureComb(bounds, s.curvatureComb, renderContext));
     if (geometryOptions.skeletonCenterline) safe(() => renderSkeletonCenterline(bounds, s.skeletonCenterline, renderContext));
