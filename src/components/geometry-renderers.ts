@@ -1578,25 +1578,43 @@ export function renderFibonacciOverlay(
     outerRect.dashArray = [4, 3];
   });
 
-  // Fibonacci sequence for labels
-  const fibs = [1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144];
-
-  // Subdivide into squares cycling LEFT → TOP → RIGHT → BOTTOM
-  for (let i = 0; i < 12; i++) {
-    const s = Math.min(w, h);
-    if (s < 0.5) break;
-
-    const dir = i % 4;
-    let sx: number, sy: number;
-
-    switch (dir) {
-      case 0: { sx = x; sy = y; x += s; w -= s; break; }
-      case 1: { sx = x; sy = y; y += s; h -= s; break; }
-      case 2: { sx = x + w - s; sy = y; w -= s; break; }
-      case 3: { sx = x; sy = y + h - s; h -= s; break; }
-      default: continue;
+  // First pass: compute all square positions to know the count
+  const squares: { sx: number; sy: number; s: number }[] = [];
+  {
+    let tw = w, th = h, tx = x, ty = y;
+    for (let i = 0; i < 12; i++) {
+      const s = Math.min(tw, th);
+      if (s < 0.5) break;
+      const dir = i % 4;
+      let sx: number, sy: number;
+      switch (dir) {
+        case 0: { sx = tx; sy = ty; tx += s; tw -= s; break; }
+        case 1: { sx = tx; sy = ty; ty += s; th -= s; break; }
+        case 2: { sx = tx + tw - s; sy = ty; tw -= s; break; }
+        case 3: { sx = tx; sy = ty + th - s; th -= s; break; }
+        default: continue;
+      }
+      squares.push({ sx, sy, s });
     }
+  }
 
+  // Build Fibonacci labels: largest square gets largest fib number
+  const fibLabels: number[] = [];
+  {
+    let a = 1, b = 1;
+    fibLabels.push(a);
+    for (let i = 1; i < squares.length; i++) {
+      fibLabels.push(b);
+      const next = a + b;
+      a = b;
+      b = next;
+    }
+    fibLabels.reverse();
+  }
+
+  // Second pass: draw the squares with correct labels
+  squares.forEach((sq, i) => {
+    const { sx, sy, s } = sq;
     const sqRect = new paper.Rectangle(new paper.Point(sx, sy), new paper.Size(s, s));
 
     let coverage = 0;
@@ -1615,17 +1633,17 @@ export function renderFibonacciOverlay(
       rect.strokeWidth = hasCoverage ? style.strokeWidth * 1.3 : style.strokeWidth * 0.6;
       rect.fillColor = fillC;
 
-      if (s > 10 && i < fibs.length) {
+      if (s > 10) {
         const label = new paper.PointText(
           new paper.Point(sx + s / 2, sy + s / 2 + 3)
         );
-        label.content = String(fibs[i]);
+        label.content = String(fibLabels[i]);
         label.fillColor = labelColor;
-        label.fontSize = Math.max(6, Math.min(12, s * 0.25));
+        label.fontSize = Math.max(6, Math.min(14, s * 0.25));
         label.justification = 'center';
       }
     });
-  }
+  });
 }
 
 export function renderKenBurnsSafe(
