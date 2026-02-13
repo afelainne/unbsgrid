@@ -201,8 +201,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     if (geometryOptions.tangentLines) safe(() => renderTangentLines(bounds, scaledCompBounds, s.tangentLines, renderContext));
     if (geometryOptions.goldenSpiral) safe(() => renderGoldenSpiral(bounds, s.goldenSpiral, renderContext));
     if (geometryOptions.isometricGrid) safe(() => renderIsometricGrid(bounds, s.isometricGrid, gridSubdivisions, renderContext));
-    if (geometryOptions.bezierHandles && parsedSVG.segments.length > 0) {
-      safe(() => renderBezierHandles(parsedSVG.segments, parsedSVG.fullBounds, bounds, s.bezierHandles));
+    if (geometryOptions.bezierHandles) {
+      safe(() => renderBezierHandles(parsedSVG.segments, parsedSVG.fullBounds, bounds, s.bezierHandles, renderContext));
     }
     if (geometryOptions.typographicProportions) safe(() => renderTypographicProportions(bounds, s.typographicProportions, renderContext));
     if (geometryOptions.thirdLines) safe(() => renderThirdLines(bounds, s.thirdLines, renderContext));

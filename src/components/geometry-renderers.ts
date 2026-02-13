@@ -593,12 +593,51 @@ export function renderBezierHandles(
   segments: BezierSegmentData[],
   originalBounds: paper.Rectangle,
   canvasBounds: paper.Rectangle,
-  style: StyleConfig
+  style: StyleConfig,
+  context?: RenderContext
 ) {
   const color = hexToColor(style.color, style.opacity);
   const handleColor = hexToColor(style.color, style.opacity * 0.7);
 
-  // Map original coords to canvas coords
+  // Prefer actual transformed paths from the render context (accurate positioning)
+  if (context?.useRealData && context?.actualPaths && context.actualPaths.length > 0) {
+    for (const path of context.actualPaths) {
+      if (!path.segments || path.segments.length === 0) continue;
+      for (const seg of path.segments) {
+        const pt = seg.point;
+
+        // Anchor point
+        const dot = new paper.Path.Circle(pt, style.strokeWidth * 1.5 + 1);
+        dot.fillColor = color;
+        dot.strokeColor = null;
+
+        // Handle In
+        if (seg.handleIn && (seg.handleIn.x !== 0 || seg.handleIn.y !== 0)) {
+          const hPt = pt.add(seg.handleIn);
+          const line = new paper.Path.Line(pt, hPt);
+          line.strokeColor = handleColor;
+          line.strokeWidth = style.strokeWidth * 0.6;
+          const hdot = new paper.Path.Circle(hPt, style.strokeWidth + 0.5);
+          hdot.fillColor = handleColor;
+          hdot.strokeColor = null;
+        }
+
+        // Handle Out
+        if (seg.handleOut && (seg.handleOut.x !== 0 || seg.handleOut.y !== 0)) {
+          const hPt = pt.add(seg.handleOut);
+          const line = new paper.Path.Line(pt, hPt);
+          line.strokeColor = handleColor;
+          line.strokeWidth = style.strokeWidth * 0.6;
+          const hdot = new paper.Path.Circle(hPt, style.strokeWidth + 0.5);
+          hdot.fillColor = handleColor;
+          hdot.strokeColor = null;
+        }
+      }
+    }
+    return;
+  }
+
+  // Fallback: use pre-extracted segments with coordinate mapping
   const mapX = (x: number) =>
     canvasBounds.left + ((x - originalBounds.left) / originalBounds.width) * canvasBounds.width;
   const mapY = (y: number) =>
@@ -608,7 +647,6 @@ export function renderBezierHandles(
     const ax = mapX(seg.anchor.x);
     const ay = mapY(seg.anchor.y);
 
-    // Anchor point
     const dot = new paper.Path.Circle(new paper.Point(ax, ay), style.strokeWidth * 1.5 + 1);
     dot.fillColor = color;
     dot.strokeColor = null;
