@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import paper from 'paper';
 import { ZoomIn, ZoomOut, Maximize, RotateCcw, Move } from 'lucide-react';
-import { type ParsedSVG, type ClearspaceUnit, computeClearspace, getLogomarkSize, generateGridLines, collectPaths } from '@/lib/svg-engine';
+import { type ParsedSVG, type ClearspaceUnit, computeClearspace, getLogomarkSize, generateGridLines, collectPaths, collectVisualPaths } from '@/lib/svg-engine';
 import type { GeometryOptions, GeometryStyles, CanvasBackground } from '@/types/geometry';
 import {
   renderBoundingRects, renderCircles, renderCenterLines, renderDiagonals,
@@ -125,7 +125,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     const logomarkSize = getLogomarkSize(components) * scale;
 
     // Extract actual paths from the scaled/transformed SVG
-    const actualPaths = collectPaths(item);
+    const actualPaths = collectVisualPaths(item);
 
     const scaledCompBounds = components.map(c => new paper.Rectangle(
       bounds.left + (c.bounds.left - parsedSVG.fullBounds.left) / parsedSVG.fullBounds.width * bounds.width,

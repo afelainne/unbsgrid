@@ -83,6 +83,29 @@ export function collectPaths(item: paper.Item): paper.Path[] {
   return paths;
 }
 
+/**
+ * Collect only visual paths, filtering out background rectangles and
+ * invisible / degenerate elements that would inflate the content bounds.
+ */
+export function collectVisualPaths(item: paper.Item): paper.Path[] {
+  const allPaths = collectPaths(item);
+  if (allPaths.length <= 1) return allPaths;
+
+  const ib = item.bounds;
+
+  const filtered = allPaths.filter((p) => {
+    const pb = p.bounds;
+    // Filter out paths covering ≥ 95% of item bounds (background rects / containers)
+    if (pb.width / ib.width > 0.95 && pb.height / ib.height > 0.95) return false;
+    // Filter out degenerate / zero-area paths
+    if (pb.width < 0.1 && pb.height < 0.1) return false;
+    return true;
+  });
+
+  // If filtering removed everything, fall back to all paths
+  return filtered.length > 0 ? filtered : allPaths;
+}
+
 export function extractPathGeometry(item: paper.Item): PathGeometry {
   const allPaths = collectPaths(item);
   const allPoints: paper.Point[] = [];

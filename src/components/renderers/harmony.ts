@@ -1,7 +1,23 @@
 import paper from 'paper';
-import { hexToColor, intersectsAnyPath, showIfIntersects, type StyleConfig, type RenderContext } from './utils';
+import { hexToColor, intersectsAnyPath, showIfIntersects, computeVisualCentroid, type StyleConfig, type RenderContext } from './utils';
 
 const PHI = (1 + Math.sqrt(5)) / 2;
+
+/** Use contentBounds (tight fit around actual vector paths) when available */
+function getEffectiveBounds(bounds: paper.Rectangle, context?: RenderContext): paper.Rectangle {
+  if (context?.useRealData && context?.contentBounds) {
+    return context.contentBounds;
+  }
+  return bounds;
+}
+
+/** Use the visual centroid of actual paths as center when available */
+function getVisualCenter(bounds: paper.Rectangle, context?: RenderContext): paper.Point {
+  if (context?.useRealData && context?.actualPaths && context.actualPaths.length > 0) {
+    return computeVisualCentroid(context.actualPaths);
+  }
+  return bounds.center;
+}
 
 /**
  * ROOT RECTANGLES (√2, √3, √5)
@@ -14,7 +30,7 @@ export function renderRootRectangles(
   style: StyleConfig,
   context?: RenderContext
 ) {
-  const eb = bounds; // always use the SVG item bounds
+  const eb = getEffectiveBounds(bounds, context);
   const actualRatio = eb.width / eb.height;
 
   const roots = [
@@ -115,12 +131,13 @@ export function renderModularScale(
   ratio: number = 1.618,
   context?: RenderContext
 ) {
-  const eb = bounds;
-  const cx = eb.center.x;
-  const cy = eb.center.y;
+  const eb = getEffectiveBounds(bounds, context);
+  const center = getVisualCenter(eb, context);
+  const cx = center.x;
+  const cy = center.y;
 
   const minDim = Math.min(eb.width, eb.height);
-  const maxRadius = Math.sqrt(eb.width * eb.width + eb.height * eb.height) / 2; // diagonal / 2
+  const maxRadius = Math.sqrt(eb.width * eb.width + eb.height * eb.height) / 2;
 
   // Base radius: inscribed circle (fits inside content)
   // Then scale down by ratio to show the scale progression starting small
@@ -280,7 +297,7 @@ export function renderFibonacciOverlay(
   style: StyleConfig,
   context?: RenderContext
 ) {
-  const eb = bounds;
+  const eb = getEffectiveBounds(bounds, context);
   const dimColor = hexToColor(style.color, style.opacity * 0.5);
   const labelColor = hexToColor(style.color, style.opacity * 0.8);
 
@@ -377,12 +394,13 @@ export function renderVesicaPiscis(
   style: StyleConfig,
   context?: RenderContext
 ) {
-  const eb = bounds;
+  const eb = getEffectiveBounds(bounds, context);
   const color = hexToColor(style.color, style.opacity);
   const fillColor = hexToColor(style.color, style.opacity * 0.06);
 
-  const cxVal = eb.center.x;
-  const cyVal = eb.center.y;
+  const center = getVisualCenter(eb, context);
+  const cxVal = center.x;
+  const cyVal = center.y;
 
   // Fit two overlapping circles WITHIN the content bounds
   // With separation d = r, total width = 2r + d = 3r, total height = 2r

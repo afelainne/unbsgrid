@@ -1070,7 +1070,7 @@ export function renderRootRectangles(
   style: StyleConfig,
   context?: RenderContext
 ) {
-  const eb = bounds;
+  const eb = getEffectiveBounds(bounds, context);
   const actualRatio = eb.width / eb.height;
 
   const roots = [
@@ -1155,9 +1155,12 @@ export function renderModularScale(
   ratio: number = 1.618,
   context?: RenderContext
 ) {
-  const eb = bounds;
-  const cx = eb.center.x;
-  const cy = eb.center.y;
+  const eb = getEffectiveBounds(bounds, context);
+  const center = (context?.useRealData && context?.actualPaths && context.actualPaths.length > 0)
+    ? computeVisualCentroid(context.actualPaths)
+    : eb.center;
+  const cx = center.x;
+  const cy = center.y;
 
   const minDim = Math.min(eb.width, eb.height);
   const diagonal = Math.sqrt(eb.width * eb.width + eb.height * eb.height);
@@ -1549,7 +1552,7 @@ export function renderFibonacciOverlay(
   style: StyleConfig,
   context?: RenderContext
 ) {
-  const eb = bounds;
+  const eb = getEffectiveBounds(bounds, context);
   const dimColor = hexToColor(style.color, style.opacity * 0.5);
   const labelColor = hexToColor(style.color, style.opacity * 0.7);
 
@@ -1744,12 +1747,15 @@ export function renderVesicaPiscis(
   style: StyleConfig,
   context?: RenderContext
 ) {
-  const eb = bounds;
+  const eb = getEffectiveBounds(bounds, context);
   const color = hexToColor(style.color, style.opacity);
   const fillColor = hexToColor(style.color, style.opacity * 0.06);
 
-  const cx = eb.center.x;
-  const cy = eb.center.y;
+  const center = (context?.useRealData && context?.actualPaths && context.actualPaths.length > 0)
+    ? computeVisualCentroid(context.actualPaths)
+    : eb.center;
+  const cx = center.x;
+  const cy = center.y;
 
   // Fit vesica piscis WITHIN content bounds
   // Total width = 3r (two circles separated by r), total height = 2r
